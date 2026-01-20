@@ -1,13 +1,13 @@
 package com.sj.Workly.entity;
 
+import com.sj.Workly.entity.enums.InviteStatus;
+import com.sj.Workly.entity.enums.Role;
 import jakarta.persistence.*;
 import java.time.Instant;
 
 @Entity
 @Table(name = "invites", indexes = @Index(name = "idx_invite_org", columnList = "org_id"))
 public class Invite {
-
-    public enum Status { PENDING, ACCEPTED, EXPIRED, REVOKED }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,7 +31,19 @@ public class Invite {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Status status = Status.PENDING;
+    private InviteStatus status = InviteStatus.PENDING;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role invitedRole = Role.MEMBER;
+
+    public Role getInvitedRole() {
+        return invitedRole;
+    }
+
+    public void setInvitedRole(Role invitedRole) {
+        this.invitedRole = invitedRole;
+    }
 
     @Column(nullable = false)
     private Instant expiresAt;
@@ -44,7 +56,7 @@ public class Invite {
         createdAt = Instant.now();
     }
 
-    protected Invite() {}
+    public Invite() {}
 
     public Long getId() {
         return id;
@@ -86,11 +98,11 @@ public class Invite {
         this.token = token;
     }
 
-    public Status getStatus() {
+    public InviteStatus getStatus() {
         return status;
     }
 
-    public void setStatus(Status status) {
+    public void setStatus(InviteStatus status) {
         this.status = status;
     }
 

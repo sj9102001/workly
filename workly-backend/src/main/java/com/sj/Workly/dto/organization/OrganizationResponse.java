@@ -1,36 +1,12 @@
-package com.sj.Workly.entity;
+package com.sj.Workly.dto.organization;
 
-import jakarta.persistence.*;
 import java.time.Instant;
 
-@Entity
-@Table(name = "organizations")
-public class Organization {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class OrganizationResponse {
     private Long id;
-
-    @Column(nullable = false)
     private String name;
-
-    @Column(nullable = false, unique = true)
-    private String slug; // e.g. "acme", used in URLs
-
-    @Column(nullable = false, updatable = false)
+    private String slug;
     private Instant createdAt;
-
-    @PrePersist
-    void onCreate() {
-        createdAt = Instant.now();
-    }
-
-    public Organization(String name, String slug) {
-        this.name = name;
-        this.slug = slug;
-    }
-
-    public Organization() {}
 
     public Long getId() {
         return id;

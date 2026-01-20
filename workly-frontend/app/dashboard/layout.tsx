@@ -4,7 +4,7 @@ import React from "react"
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   SidebarProvider,
   Sidebar,
@@ -40,6 +40,8 @@ import {
   Building2,
   Check,
 } from "lucide-react";
+import { ProtectedRoute } from "@/components/protected-route";
+import { useAuth } from "@/lib/auth-context";
 
 const organizations = [
   { id: "1", name: "Acme Corp", slug: "acme" },
@@ -60,7 +62,14 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuth();
   const [currentOrg, setCurrentOrg] = useState(organizations[0]);
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/auth/login");
+  };
 
   return (
     <SidebarProvider>
@@ -154,13 +163,13 @@ export default function DashboardLayout({
               >
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                    JD
+                    {user?.name?.split(' ').map(n => n[0]).join('') || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col items-start ml-2">
-                  <span className="text-sm font-medium">John Doe</span>
+                  <span className="text-sm font-medium">{user?.name || 'User'}</span>
                   <span className="text-xs text-muted-foreground">
-                    john@example.com
+                    {user?.email || 'user@example.com'}
                   </span>
                 </div>
               </Button>
@@ -171,11 +180,9 @@ export default function DashboardLayout({
                 Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/login" className="text-destructive">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sign out
-                </Link>
+              <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -190,7 +197,9 @@ export default function DashboardLayout({
             <span>{currentOrg.name}</span>
           </div>
         </header>
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main className="flex-1 overflow-auto">
+          <ProtectedRoute>{children}</ProtectedRoute>
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );

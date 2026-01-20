@@ -1,36 +1,14 @@
-package com.sj.Workly.entity;
+package com.sj.Workly.dto.project;
 
-import jakarta.persistence.*;
 import java.time.Instant;
 
-@Entity
-@Table(name = "organizations")
-public class Organization {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class ProjectResponse {
     private Long id;
-
-    @Column(nullable = false)
+    private Long orgId;
     private String name;
-
-    @Column(nullable = false, unique = true)
-    private String slug; // e.g. "acme", used in URLs
-
-    @Column(nullable = false, updatable = false)
+    private String slug;
     private Instant createdAt;
-
-    @PrePersist
-    void onCreate() {
-        createdAt = Instant.now();
-    }
-
-    public Organization(String name, String slug) {
-        this.name = name;
-        this.slug = slug;
-    }
-
-    public Organization() {}
+    private Instant updatedAt;
 
     public Long getId() {
         return id;
@@ -38,6 +16,14 @@ public class Organization {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getOrgId() {
+        return orgId;
+    }
+
+    public void setOrgId(Long orgId) {
+        this.orgId = orgId;
     }
 
     public String getName() {
@@ -62,5 +48,13 @@ public class Organization {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

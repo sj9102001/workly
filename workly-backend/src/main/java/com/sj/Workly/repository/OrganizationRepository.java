@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface OrganizationRepository extends JpaRepository<Organization, Long> {
     Optional<Organization> findBySlug(String slug);
     boolean existsBySlug(String slug);
+    Optional<Organization> findByIdAndSlug(Long id, String slug); // optional
 }

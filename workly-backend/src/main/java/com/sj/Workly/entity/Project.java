@@ -6,7 +6,7 @@ import java.time.Instant;
 @Entity
 @Table(
         name = "projects",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"org_id", "key_code"})
+        uniqueConstraints = @UniqueConstraint(columnNames = {"org_id", "slug"})
 )
 public class Project {
 
@@ -22,8 +22,8 @@ public class Project {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "key_code", nullable = false)
-    private String key; // e.g. "WORK", used in Issue keys WORK-123
+    @Column(name = "slug", nullable = false)
+    private String slug; // e.g. "WORK", used in Issue keys WORK-123
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by_user_id", nullable = false)
@@ -32,12 +32,27 @@ public class Project {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(nullable = false)
+    private Instant updatedAt;
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
     @PrePersist
     void onCreate() {
         createdAt = Instant.now();
+        updatedAt = createdAt;
     }
 
-    protected Project() {}
+    @PreUpdate
+    void onUpdate() {updatedAt = Instant.now();}
+
+    public Project() {}
 
     public Long getId() {
         return id;
@@ -63,12 +78,12 @@ public class Project {
         this.name = name;
     }
 
-    public String getKey() {
-        return key;
+    public String getSlug() {
+        return slug;
     }
 
-    public void setKey(String key) {
-        this.key = key;
+    public void setSlug(String key) {
+        this.slug = key;
     }
 
     public User getCreatedBy() {

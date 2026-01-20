@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ProjectRepository extends JpaRepository<Project, Long> {
-    List<Project> findByOrgId(Long orgId);
-    Optional<Project> findByOrgIdAndKey(Long orgId, String key);
+    boolean existsByOrgIdAndSlug(Long orgId, String slug);
+    List<Project> findByOrgIdOrderByCreatedAtDesc(Long orgId);
+    Optional<Project> findByIdAndOrgId(Long projectId, Long orgId);
 }

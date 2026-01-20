@@ -1,50 +1,37 @@
 package com.sj.Workly.entity;
 
-import com.sj.Workly.entity.enums.Role;
 import jakarta.persistence.*;
 import java.time.Instant;
 
 @Entity
-@Table(
-        name = "org_members",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"org_id", "user_id"})
-)
-public class OrgMember {
+@Table(name = "project_members",
+        uniqueConstraints = @UniqueConstraint(name = "uq_project_user", columnNames = {"project_id", "user_id"}))
+public class ProjectMember {
 
+    public enum Role { ADMIN, MEMBER }
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // MANY memberships belong to ONE organization
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "org_id", nullable = false)
-    private Organization org;
+    @JoinColumn(name="project_id", nullable = false)
+    private Project project;
 
-    // MANY memberships belong to ONE user
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name="user_id", nullable = false)
     private User user;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable=false, length = 20)
     private Role role = Role.MEMBER;
 
-    @Column(nullable = false, updatable = false)
+    @Column(nullable=false, updatable=false)
     private Instant createdAt;
 
     @PrePersist
-    void onCreate() {
-        createdAt = Instant.now();
-    }
+    void onCreate() { createdAt = Instant.now(); }
 
-    public OrgMember(Organization org, User user, Role role) {
-        this.org = org;
-        this.user = user;
-        this.role = role;
-    }
-
-    public OrgMember() {}
+    public ProjectMember() {}
 
     public Long getId() {
         return id;
@@ -54,12 +41,12 @@ public class OrgMember {
         this.id = id;
     }
 
-    public Organization getOrg() {
-        return org;
+    public Project getProject() {
+        return project;
     }
 
-    public void setOrg(Organization org) {
-        this.org = org;
+    public void setProject(Project project) {
+        this.project = project;
     }
 
     public User getUser() {
