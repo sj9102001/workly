@@ -4,11 +4,14 @@ import React from "react"
 
 import { useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+  import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, Loader2, Check } from "lucide-react";
+import { register, getCurrentUser } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 
 const passwordRequirements = [
   { label: "At least 8 characters", test: (p: string) => p.length >= 8 },
@@ -18,6 +21,8 @@ const passwordRequirements = [
 ];
 
 export default function RegisterPage() {
+  const router = useRouter();
+  const { setUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -27,15 +32,55 @@ export default function RegisterPage() {
     company: "",
   });
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!agreedToTerms) return;
+
+    setError(null);
+
+    // Basic password validation mirroring the UI hints
+    if (!passwordRequirements.every((req) => req.test(formData.password))) {
+      setError("Password does not meet the required strength criteria.");
+      return;
+    }
+
+    if (!formData.company || formData.company.trim().length < 2) {
+      setError("Company name is required (at least 2 characters).");
+      return;
+    }
+
     setIsLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsLoading(false);
-    // Handle registration logic here
+    try {
+      const response = await register(
+        formData.email,
+        formData.password,
+        formData.name,
+        formData.company, // maps to orgName on backend
+      );
+
+      if (response.accessToken && response.userId) {
+        try {
+          const userData = await getCurrentUser();
+          setUser(userData);
+        } catch (userError) {
+          console.error("Error fetching user data:", userError);
+          // Still continue to dashboard even if user fetch fails
+        }
+      }
+
+      router.push("/dashboard");
+    } catch (err: any) {
+      console.error("Register error:", err);
+      const message =
+        err?.message ||
+        err?.data?.message ||
+        "Failed to create account. Please check your details and try again.";
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const updateFormData = (field: string, value: string) => {
@@ -108,6 +153,12 @@ export default function RegisterPage() {
               Create your account to get started. Free forever.
             </p>
           </div>
+
+          {error && (
+            <div className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">

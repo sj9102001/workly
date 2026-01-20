@@ -4,25 +4,53 @@ import React from "react"
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { login, getCurrentUser } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { setUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setIsLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsLoading(false);
-    // Handle login logic here
+
+    try {
+      const response = await login(email, password);
+
+      if (response.accessToken && response.userId) {
+        try {
+          const userData = await getCurrentUser();
+          setUser(userData);
+        } catch (userError) {
+          console.error("Error fetching user data:", userError);
+          // Still continue to dashboard even if user fetch fails
+        }
+      }
+
+      router.push("/dashboard");
+    } catch (err: any) {
+      console.error("Login error:", err);
+      const message =
+        err?.message ||
+        err?.data?.message ||
+        "Failed to login. Please check your credentials and try again.";
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -45,6 +73,12 @@ export default function LoginPage() {
               Enter your credentials to access your account
             </p>
           </div>
+
+          {error && (
+            <div className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
