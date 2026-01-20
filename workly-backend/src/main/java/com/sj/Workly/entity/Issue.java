@@ -60,6 +60,13 @@ public class Issue {
     @Column(nullable = false)
     private Instant updatedAt;
 
+    @Column(nullable = false)
+    private Double position = 0.0;
+
+    // getter/setter
+    public Double getPosition() { return position; }
+    public void setPosition(Double position) { this.position = position; }
+
     @PrePersist
     void onCreate() {
         createdAt = Instant.now();
@@ -71,7 +78,7 @@ public class Issue {
         updatedAt = Instant.now();
     }
 
-    protected Issue() {}
+    public Issue() {}
 
     public Instant getCreatedAt() {
         return createdAt;

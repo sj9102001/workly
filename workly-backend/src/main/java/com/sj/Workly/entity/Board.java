@@ -22,12 +22,27 @@ public class Board {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
+
+    @Column(nullable = false)
+    private Instant updatedAt;
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
     @PrePersist
     void onCreate() {
         createdAt = Instant.now();
     }
 
-    protected Board() {}
+    @PreUpdate
+    void onUpdate() {updatedAt=Instant.now();}
+
+    public Board() {}
 
     public Long getId() {
         return id;
