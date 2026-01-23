@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16
-    container_name: postgres-db
+    container_name: workly-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
@@ -11,6 +11,40 @@ services:
       - "5432:5432"
     volumes:
       - psql-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./workly-backend
+      dockerfile: Dockerfile
+    container_name: workly-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+
+  frontend:
+    build:
+      context: ./workly-frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+    container_name: workly-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      - backend
 
 volumes:
   psql-db:
