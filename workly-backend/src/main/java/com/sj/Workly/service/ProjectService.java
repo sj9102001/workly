@@ -48,7 +48,9 @@ public class ProjectService {
         project.setOrg(org);
         project.setName(req.getName().trim());
         project.setSlug(generateUniqueProjectSlug(orgId, req.getName().trim()));
+        project.setCreatedBy(actor);
         project = projectRepo.save(project);
+
 
         // add creator as project ADMIN
         ProjectMember pm = new ProjectMember();

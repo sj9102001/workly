@@ -470,72 +470,72 @@ export default function ProjectBoardPage({
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Tabs defaultValue="board">
-                <TabsList>
-                  <TabsTrigger value="board">Board</TabsTrigger>
-                  <TabsTrigger value="list">List</TabsTrigger>
-                  <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
+          <div className="flex items-center gap-2">
+            <Tabs defaultValue="board">
+              <TabsList className="h-8">
+                <TabsTrigger value="board" className="text-xs px-2.5 h-6">Board</TabsTrigger>
+                <TabsTrigger value="list" className="text-xs px-2.5 h-6">List</TabsTrigger>
+                <TabsTrigger value="timeline" className="text-xs px-2.5 h-6">Timeline</TabsTrigger>
+              </TabsList>
+            </Tabs>
 
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="flex-1" />
+
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="relative hidden sm:block">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
-                  placeholder="Search tasks..."
-                  className="pl-9 w-[200px]"
+                  placeholder="Search..."
+                  className="pl-7 h-8 w-[140px] text-xs"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                Filter
+              <Button variant="outline" size="sm" className="h-8 px-2 bg-transparent">
+                <Filter className="h-3.5 w-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline text-xs">Filter</span>
               </Button>
-              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create
+              <Button size="sm" className="h-8 px-2.5" onClick={() => setCreateTaskOpen(true)}>
+                <Plus className="h-3.5 w-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline text-xs">Create</span>
               </Button>
             </div>
           </div>
         </div>
 
         {/* Kanban Board */}
-        <div className="flex-1 overflow-x-auto p-6">
-          <div className="flex gap-4 h-full min-w-max">
+        <div className="flex-1 overflow-x-auto p-4">
+          <div className="flex gap-3 h-full">
             {filteredColumns.map((column) => (
               <div
                 key={column.id}
-                className="flex flex-col w-[320px] bg-muted/30 rounded-lg"
+                className="flex flex-col w-[260px] min-w-[220px] shrink-0 bg-muted/30 rounded-lg"
                 onDragOver={handleDragOver}
                 onDrop={() => handleDrop(column.id)}
               >
                 {/* Column Header */}
-                <div className="flex items-center justify-between p-3 border-b">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-sm">{column.title}</h3>
-                    <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                <div className="flex items-center justify-between px-2.5 py-2 border-b">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="font-semibold text-xs">{column.title}</h3>
+                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
                       {column.tasks.length}
                     </span>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
+                    className="h-6 w-6"
                     onClick={() => {
                       setNewTask({ ...newTask, columnId: column.id });
                       setCreateTaskOpen(true);
                     }}
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3.5 w-3.5" />
                   </Button>
                 </div>
 
                 {/* Tasks */}
-                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                <div className="flex-1 overflow-y-auto p-1.5 space-y-1.5">
                   {column.tasks.map((task) => (
                     <div
                       key={task.id}
@@ -543,32 +543,32 @@ export default function ProjectBoardPage({
                       onDragStart={() => handleDragStart(task, column.id)}
                       onClick={() => openTaskDetail(task)}
                       className={cn(
-                        "bg-background rounded-lg border p-3 cursor-pointer hover:border-primary/50 transition-all",
+                        "bg-background rounded-md border p-2 cursor-pointer hover:border-primary/50 transition-all",
                         "hover:shadow-sm group",
                         draggedTask?.task.id === task.id && "opacity-50"
                       )}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-start justify-between gap-1">
+                        <div className="flex items-center gap-1.5">
                           {getTypeIcon(task.type)}
-                          <span className="text-xs text-muted-foreground font-mono">
+                          <span className="text-[10px] text-muted-foreground font-mono">
                             {task.key}
                           </span>
                         </div>
-                        <GripVertical className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity cursor-grab" />
+                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity cursor-grab" />
                       </div>
 
-                      <h4 className="mt-2 text-sm font-medium leading-snug">
+                      <h4 className="mt-1.5 text-xs font-medium leading-snug line-clamp-2">
                         {task.title}
                       </h4>
 
                       {task.labels.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
+                        <div className="mt-1.5 flex flex-wrap gap-0.5">
                           {task.labels.slice(0, 2).map((label) => (
                             <Badge
                               key={label}
                               variant="secondary"
-                              className="text-[10px] px-1.5 py-0"
+                              className="text-[9px] px-1 py-0 h-4"
                             >
                               {label}
                             </Badge>
@@ -576,7 +576,7 @@ export default function ProjectBoardPage({
                           {task.labels.length > 2 && (
                             <Badge
                               variant="secondary"
-                              className="text-[10px] px-1.5 py-0"
+                              className="text-[9px] px-1 py-0 h-4"
                             >
                               +{task.labels.length - 2}
                             </Badge>
@@ -585,14 +585,14 @@ export default function ProjectBoardPage({
                       )}
 
                       {task.subtasks && (
-                        <div className="mt-2">
-                          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                        <div className="mt-1.5">
+                          <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-0.5">
                             <span>Subtasks</span>
                             <span>
                               {task.subtasks.completed}/{task.subtasks.total}
                             </span>
                           </div>
-                          <div className="h-1 bg-muted rounded-full overflow-hidden">
+                          <div className="h-0.5 bg-muted rounded-full overflow-hidden">
                             <div
                               className="h-full bg-primary rounded-full"
                               style={{
@@ -603,33 +603,33 @@ export default function ProjectBoardPage({
                         </div>
                       )}
 
-                      <div className="mt-3 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                      <div className="mt-2 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
                           {getPriorityIcon(task.priority)}
                           {task.dueDate && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Clock className="h-3 w-3" />
+                            <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                              <Clock className="h-2.5 w-2.5" />
                               {task.dueDate}
                             </div>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           {task.comments > 0 && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <MessageSquare className="h-3 w-3" />
+                            <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                              <MessageSquare className="h-2.5 w-2.5" />
                               {task.comments}
                             </div>
                           )}
                           {task.attachments > 0 && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Paperclip className="h-3 w-3" />
+                            <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                              <Paperclip className="h-2.5 w-2.5" />
                               {task.attachments}
                             </div>
                           )}
                           {task.assignee && (
-                            <Avatar className="h-6 w-6">
-                              <AvatarFallback className="text-[10px] bg-muted">
+                            <Avatar className="h-5 w-5">
+                              <AvatarFallback className="text-[9px] bg-muted">
                                 {task.assignee.name
                                   .split(" ")
                                   .map((n) => n[0])
