@@ -11,7 +11,8 @@ import java.time.Instant;
         indexes = {
                 @Index(name = "idx_issue_project", columnList = "project_id"),
                 @Index(name = "idx_issue_assignee", columnList = "assignee_user_id"),
-                @Index(name = "idx_issue_status", columnList = "status")
+                @Index(name = "idx_issue_status", columnList = "status"),
+                @Index(name = "idx_issue_column", columnList = "column_id")
         }
 )
 public class Issue {
@@ -25,10 +26,10 @@ public class Issue {
     @JoinColumn(name = "project_id", nullable = false)
     private Project project;
 
-    // Optional: place issue on a specific board
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "board_id")
-    private Board board;
+    // Issue belongs to a column (required)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "column_id", nullable = false)
+    private BoardColumn column;
 
     @Column(nullable = false)
     private String title;
@@ -61,11 +62,11 @@ public class Issue {
     private Instant updatedAt;
 
     @Column(nullable = false)
-    private Double position = 0.0;
+    private Integer orderIndex = 0; // For ranking issues within a column
 
     // getter/setter
-    public Double getPosition() { return position; }
-    public void setPosition(Double position) { this.position = position; }
+    public Integer getOrderIndex() { return orderIndex; }
+    public void setOrderIndex(Integer orderIndex) { this.orderIndex = orderIndex; }
 
     @PrePersist
     void onCreate() {
@@ -104,12 +105,12 @@ public class Issue {
         this.project = project;
     }
 
-    public Board getBoard() {
-        return board;
+    public BoardColumn getColumn() {
+        return column;
     }
 
-    public void setBoard(Board board) {
-        this.board = board;
+    public void setColumn(BoardColumn column) {
+        this.column = column;
     }
 
     public String getTitle() {

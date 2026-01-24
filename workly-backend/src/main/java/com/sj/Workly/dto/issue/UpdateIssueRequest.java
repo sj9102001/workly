@@ -14,7 +14,7 @@ public class UpdateIssueRequest {
     private IssuePriority priority;
     private IssueStatus status;
 
-    private Long boardId;     // move to board
+    private Long columnId;     // move to column
     private Long assigneeId;  // assign
 
     public String getTitle() { return title; }
@@ -29,8 +29,8 @@ public class UpdateIssueRequest {
     public IssueStatus getStatus() { return status; }
     public void setStatus(IssueStatus status) { this.status = status; }
 
-    public Long getBoardId() { return boardId; }
-    public void setBoardId(Long boardId) { this.boardId = boardId; }
+    public Long getColumnId() { return columnId; }
+    public void setColumnId(Long columnId) { this.columnId = columnId; }
 
     public Long getAssigneeId() { return assigneeId; }
     public void setAssigneeId(Long assigneeId) { this.assigneeId = assigneeId; }

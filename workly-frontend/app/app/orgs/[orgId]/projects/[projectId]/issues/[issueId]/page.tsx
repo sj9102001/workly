@@ -21,7 +21,7 @@ import {
 import {
   useOrganization,
   useProject,
-  useBoards,
+  useColumns,
   useIssue,
   useUpdateIssue,
   useMoveIssue,
@@ -55,7 +55,7 @@ export default function IssueDetailPage({
 
   const { data: org } = useOrganization(orgIdNum);
   const { data: project } = useProject(orgIdNum, projectIdNum);
-  const { data: boards } = useBoards(orgIdNum, projectIdNum);
+  const { data: columns } = useColumns(orgIdNum, projectIdNum);
   const { data: issue, isLoading } = useIssue(orgIdNum, projectIdNum, issueIdNum);
   const updateIssue = useUpdateIssue();
   const moveIssue = useMoveIssue();
@@ -65,7 +65,7 @@ export default function IssueDetailPage({
     description?: string;
     priority?: string;
     status?: string;
-    boardId?: string;
+    columnId?: string;
   }>({});
 
   const hasChanges = Object.keys(editedIssue).length > 0;
@@ -78,15 +78,19 @@ export default function IssueDetailPage({
     if (editedIssue.description !== undefined) updateData.description = editedIssue.description;
     if (editedIssue.priority !== undefined) updateData.priority = editedIssue.priority;
 
-    // Status and board changes go through the move endpoint
-    if (editedIssue.status !== undefined || editedIssue.boardId !== undefined) {
+    // Status and column changes go through the move endpoint
+    if (editedIssue.status !== undefined || editedIssue.columnId !== undefined) {
+      const targetColumnId = editedIssue.columnId 
+        ? Number(editedIssue.columnId) 
+        : issue?.columnId;
+
       await moveIssue.mutateAsync({
         orgId: orgIdNum,
         projectId: projectIdNum,
         issueId: issueIdNum,
         data: {
           status: editedIssue.status,
-          boardId: editedIssue.boardId ? Number(editedIssue.boardId) : undefined,
+          columnId: targetColumnId!,
         },
       });
     }
@@ -137,7 +141,7 @@ export default function IssueDetailPage({
   const currentDescription = editedIssue.description ?? issue.description ?? "";
   const currentPriority = editedIssue.priority ?? issue.priority;
   const currentStatus = editedIssue.status ?? issue.status;
-  const currentBoardId = editedIssue.boardId ?? (issue.boardId ? String(issue.boardId) : "");
+  const currentColumnId = editedIssue.columnId ?? (issue.columnId ? String(issue.columnId) : "");
 
   return (
     <>
@@ -251,19 +255,18 @@ export default function IssueDetailPage({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Board</Label>
+                  <Label>Column</Label>
                   <Select
-                    value={currentBoardId}
-                    onValueChange={(v) => setEditedIssue({ ...editedIssue, boardId: v })}
+                    value={currentColumnId}
+                    onValueChange={(v) => setEditedIssue({ ...editedIssue, columnId: v })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Backlog" />
+                      <SelectValue placeholder="Select column" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="0">Backlog (No Board)</SelectItem>
-                      {boards?.map((board) => (
-                        <SelectItem key={board.id} value={String(board.id)}>
-                          {board.name}
+                      {columns?.map((column) => (
+                        <SelectItem key={column.id} value={String(column.id)}>
+                          {column.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

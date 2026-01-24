@@ -9,7 +9,7 @@ public class IssueResponse {
 
     private Long id;
     private Long projectId;
-    private Long boardId;
+    private Long columnId;
 
     private String title;
     private String description;
@@ -29,8 +29,8 @@ public class IssueResponse {
     public Long getProjectId() { return projectId; }
     public void setProjectId(Long projectId) { this.projectId = projectId; }
 
-    public Long getBoardId() { return boardId; }
-    public void setBoardId(Long boardId) { this.boardId = boardId; }
+    public Long getColumnId() { return columnId; }
+    public void setColumnId(Long columnId) { this.columnId = columnId; }
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }

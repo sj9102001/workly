@@ -3,6 +3,7 @@ package com.sj.Workly.dto.issue;
 import com.sj.Workly.entity.enums.IssuePriority;
 import com.sj.Workly.entity.enums.IssueStatus;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public class CreateIssueRequest {
@@ -16,7 +17,8 @@ public class CreateIssueRequest {
     private IssuePriority priority = IssuePriority.MEDIUM;
     private IssueStatus status = IssueStatus.TO_DO;
 
-    private Long boardId;     // optional
+    @NotNull
+    private Long columnId;     // required - issue must be in a column
     private Long assigneeId;  // optional
 
     public String getTitle() { return title; }
@@ -31,8 +33,8 @@ public class CreateIssueRequest {
     public IssueStatus getStatus() { return status; }
     public void setStatus(IssueStatus status) { this.status = status; }
 
-    public Long getBoardId() { return boardId; }
-    public void setBoardId(Long boardId) { this.boardId = boardId; }
+    public Long getColumnId() { return columnId; }
+    public void setColumnId(Long columnId) { this.columnId = columnId; }
 
     public Long getAssigneeId() { return assigneeId; }
     public void setAssigneeId(Long assigneeId) { this.assigneeId = assigneeId; }

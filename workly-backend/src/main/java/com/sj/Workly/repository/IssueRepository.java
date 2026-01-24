@@ -12,15 +12,13 @@ public interface IssueRepository extends JpaRepository<Issue, Long> {
     List<Issue> findByProjectId(Long projectId);
     List<Issue> findByAssigneeId(Long userId);
     List<Issue> findByProjectIdOrderByCreatedAtDesc(Long projectId);
-    List<Issue> findByProjectIdAndBoardIdOrderByPositionAsc(Long projectId, Long boardId);
-    List<Issue> findByProjectIdAndBoardIsNullOrderByPositionAsc(Long projectId);
+    List<Issue> findByColumnIdOrderByOrderIndexAsc(Long columnId);
     List<Issue> findByProjectIdAndStatusOrderByCreatedAtDesc(Long projectId, IssueStatus status);
     Optional<Issue> findByIdAndProjectId(Long issueId, Long projectId);
     @Query("""
-        select max(i.position)
+        select max(i.orderIndex)
         from Issue i
-        where i.project.id = :projectId
-          and (:boardId is null and i.board is null or i.board.id = :boardId)
+        where i.column.id = :columnId
     """)
-    Double findMaxPosition(Long projectId, Long boardId);
+    Integer findMaxOrderIndex(Long columnId);
 }

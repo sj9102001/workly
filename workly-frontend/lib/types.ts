@@ -120,14 +120,28 @@ export interface UpdateProjectRequest {
 // Board types
 export interface BoardResponse {
   id: number;
-  name: string;
   projectId: number;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface CreateBoardRequest {
+// Column types
+export interface ColumnResponse {
+  id: number;
+  boardId: number;
   name: string;
+  orderIndex: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateColumnRequest {
+  name: string;
+}
+
+export interface UpdateColumnRequest {
+  name?: string;
+  orderIndex?: number;
 }
 
 // Issue types
@@ -140,7 +154,7 @@ export interface IssueResponse {
   description: string | null;
   priority: Priority;
   status: IssueStatus;
-  boardId: number | null;
+  columnId: number;
   projectId: number;
   reporterId: number;
   assigneeId: number | null;
@@ -154,7 +168,7 @@ export interface CreateIssueRequest {
   description?: string;
   priority: Priority;
   status?: IssueStatus;
-  boardId?: number;
+  columnId: number;
   assigneeId?: number;
 }
 
@@ -163,13 +177,13 @@ export interface UpdateIssueRequest {
   description?: string;
   priority?: Priority;
   status?: IssueStatus;
-  boardId?: number;
+  columnId?: number;
   assigneeId?: number;
 }
 
 export interface MoveIssueRequest {
+  columnId: number;
   status?: IssueStatus;
-  boardId?: number;
   beforeIssueId?: number;
   afterIssueId?: number;
 }

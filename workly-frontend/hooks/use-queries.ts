@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { orgApi, projectApi, boardApi, issueApi, inviteApi } from "@/lib/api";
+import { orgApi, projectApi, boardApi, columnApi, issueApi, inviteApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 // Organization hooks
@@ -260,24 +260,68 @@ export function useRemoveProjectMember() {
 }
 
 // Board hooks
-export function useBoards(orgId: number | null, projectId: number | null) {
+export function useBoard(orgId: number | null, projectId: number | null) {
   return useQuery({
-    queryKey: ["boards", orgId, projectId],
-    queryFn: () => boardApi.list(orgId!, projectId!),
+    queryKey: ["board", orgId, projectId],
+    queryFn: () => boardApi.get(orgId!, projectId!),
     enabled: !!orgId && !!projectId,
   });
 }
 
-export function useCreateBoard() {
+// Column hooks
+export function useColumns(orgId: number | null, projectId: number | null) {
+  return useQuery({
+    queryKey: ["columns", orgId, projectId],
+    queryFn: () => columnApi.list(orgId!, projectId!),
+    enabled: !!orgId && !!projectId,
+  });
+}
+
+export function useCreateColumn() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: ({ orgId, projectId, name }: { orgId: number; projectId: number; name: string }) =>
-      boardApi.create(orgId, projectId, name),
+      columnApi.create(orgId, projectId, name),
     onSuccess: (_, { orgId, projectId }) => {
-      queryClient.invalidateQueries({ queryKey: ["boards", orgId, projectId] });
-      toast({ title: "Board created" });
+      queryClient.invalidateQueries({ queryKey: ["columns", orgId, projectId] });
+      toast({ title: "Column created" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useUpdateColumn() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: ({ orgId, projectId, columnId, data }: { orgId: number; projectId: number; columnId: number; data: { name?: string; orderIndex?: number } }) =>
+      columnApi.update(orgId, projectId, columnId, data),
+    onSuccess: (_, { orgId, projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ["columns", orgId, projectId] });
+      toast({ title: "Column updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useDeleteColumn() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: ({ orgId, projectId, columnId }: { orgId: number; projectId: number; columnId: number }) =>
+      columnApi.delete(orgId, projectId, columnId),
+    onSuccess: (_, { orgId, projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ["columns", orgId, projectId] });
+      queryClient.invalidateQueries({ queryKey: ["issues", orgId, projectId] });
+      toast({ title: "Column deleted" });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -286,7 +330,7 @@ export function useCreateBoard() {
 }
 
 // Issue hooks
-export function useIssues(orgId: number | null, projectId: number | null, params?: { boardId?: number; status?: string }) {
+export function useIssues(orgId: number | null, projectId: number | null, params?: { columnId?: number; status?: string }) {
   return useQuery({
     queryKey: ["issues", orgId, projectId, params],
     queryFn: () => issueApi.list(orgId!, projectId!, params),
@@ -314,7 +358,7 @@ export function useCreateIssue() {
     }: {
       orgId: number;
       projectId: number;
-      data: { title: string; description?: string; priority: string; status?: string; boardId?: number; assigneeId?: number };
+      data: { title: string; description?: string; priority: string; status?: string; columnId: number; assigneeId?: number };
     }) => issueApi.create(orgId, projectId, data),
     onSuccess: (_, { orgId, projectId }) => {
       queryClient.invalidateQueries({ queryKey: ["issues", orgId, projectId] });
@@ -340,7 +384,7 @@ export function useUpdateIssue() {
       orgId: number;
       projectId: number;
       issueId: number;
-      data: { title?: string; description?: string; priority?: string; status?: string; boardId?: number; assigneeId?: number };
+      data: { title?: string; description?: string; priority?: string; status?: string; columnId?: number; assigneeId?: number };
     }) => issueApi.update(orgId, projectId, issueId, data),
     onSuccess: (_, { orgId, projectId, issueId }) => {
       queryClient.invalidateQueries({ queryKey: ["issue", orgId, projectId, issueId] });
@@ -366,7 +410,7 @@ export function useMoveIssue() {
       orgId: number;
       projectId: number;
       issueId: number;
-      data: { status?: string; boardId?: number; beforeIssueId?: number; afterIssueId?: number };
+      data: { columnId: number; status?: string; beforeIssueId?: number; afterIssueId?: number };
     }) => issueApi.move(orgId, projectId, issueId, data),
     onSuccess: (_, { orgId, projectId, issueId }) => {
       queryClient.invalidateQueries({ queryKey: ["issue", orgId, projectId, issueId] });

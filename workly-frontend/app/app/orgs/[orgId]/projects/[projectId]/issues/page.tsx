@@ -37,7 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   useOrganization,
   useProject,
-  useBoards,
+  useColumns,
   useIssues,
   useCreateIssue,
 } from "@/hooks/use-queries";
@@ -63,14 +63,14 @@ function IssuesPageContent({ orgId, projectId }: { orgId: string; projectId: str
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const boardIdParam = searchParams.get("boardId");
+  const columnIdParam = searchParams.get("columnId");
   const statusParam = searchParams.get("status");
 
   const { data: org } = useOrganization(orgIdNum);
   const { data: project } = useProject(orgIdNum, projectIdNum);
-  const { data: boards } = useBoards(orgIdNum, projectIdNum);
+  const { data: columns } = useColumns(orgIdNum, projectIdNum);
   const { data: issues, isLoading } = useIssues(orgIdNum, projectIdNum, {
-    boardId: boardIdParam ? Number(boardIdParam) : undefined,
+    columnId: columnIdParam ? Number(columnIdParam) : undefined,
     status: statusParam || undefined,
   });
   const createIssue = useCreateIssue();
@@ -81,11 +81,11 @@ function IssuesPageContent({ orgId, projectId }: { orgId: string; projectId: str
     description: "",
     priority: "MEDIUM",
     status: "TO_DO",
-    boardId: "",
+    columnId: "",
   });
 
   const handleCreate = async () => {
-    if (!newIssue.title.trim()) return;
+    if (!newIssue.title.trim() || !newIssue.columnId) return;
     await createIssue.mutateAsync({
       orgId: orgIdNum,
       projectId: projectIdNum,
@@ -94,11 +94,11 @@ function IssuesPageContent({ orgId, projectId }: { orgId: string; projectId: str
         description: newIssue.description || undefined,
         priority: newIssue.priority,
         status: newIssue.status,
-        boardId: newIssue.boardId ? Number(newIssue.boardId) : undefined,
+        columnId: Number(newIssue.columnId),
       },
     });
     setIsCreateOpen(false);
-    setNewIssue({ title: "", description: "", priority: "MEDIUM", status: "TO_DO", boardId: "" });
+    setNewIssue({ title: "", description: "", priority: "MEDIUM", status: "TO_DO", columnId: columns?.[0]?.id ? String(columns[0].id) : "" });
   };
 
   const updateFilter = (key: string, value: string) => {
@@ -137,16 +137,15 @@ function IssuesPageContent({ orgId, projectId }: { orgId: string; projectId: str
 
         {/* Filters */}
         <div className="mb-4 flex gap-3">
-          <Select value={boardIdParam || "all"} onValueChange={(v) => updateFilter("boardId", v)}>
+          <Select value={columnIdParam || "all"} onValueChange={(v) => updateFilter("columnId", v)}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Boards" />
+              <SelectValue placeholder="All Columns" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Boards</SelectItem>
-              <SelectItem value="0">Backlog (No Board)</SelectItem>
-              {boards?.map((board) => (
-                <SelectItem key={board.id} value={String(board.id)}>
-                  {board.name}
+              <SelectItem value="all">All Columns</SelectItem>
+              {columns?.map((column) => (
+                <SelectItem key={column.id} value={String(column.id)}>
+                  {column.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -289,19 +288,19 @@ function IssuesPageContent({ orgId, projectId }: { orgId: string; projectId: str
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Board</Label>
+              <Label>Column *</Label>
               <Select
-                value={newIssue.boardId}
-                onValueChange={(v) => setNewIssue({ ...newIssue, boardId: v })}
+                value={newIssue.columnId}
+                onValueChange={(v) => setNewIssue({ ...newIssue, columnId: v })}
+                required
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select board (optional)" />
+                  <SelectValue placeholder="Select column (required)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">Backlog (No Board)</SelectItem>
-                  {boards?.map((board) => (
-                    <SelectItem key={board.id} value={String(board.id)}>
-                      {board.name}
+                  {columns?.map((column) => (
+                    <SelectItem key={column.id} value={String(column.id)}>
+                      {column.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -312,7 +311,7 @@ function IssuesPageContent({ orgId, projectId }: { orgId: string; projectId: str
             <Button variant="outline" onClick={() => setIsCreateOpen(false)} className="bg-transparent">
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={!newIssue.title.trim() || createIssue.isPending}>
+            <Button onClick={handleCreate} disabled={!newIssue.title.trim() || !newIssue.columnId || createIssue.isPending}>
               {createIssue.isPending ? "Creating..." : "Create Issue"}
             </Button>
           </DialogFooter>

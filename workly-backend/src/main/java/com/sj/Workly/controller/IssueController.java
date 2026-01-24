@@ -33,9 +33,9 @@ public class IssueController {
     public List<IssueResponse> list(@AuthenticationPrincipal User user,
                                     @PathVariable Long orgId,
                                     @PathVariable Long projectId,
-                                    @RequestParam(required = false) Long boardId,
+                                    @RequestParam(required = false) Long columnId,
                                     @RequestParam(required = false) IssueStatus status) {
-        return issueService.list(user, projectId, boardId, status);
+        return issueService.list(user, projectId, columnId, status);
     }
 
     @GetMapping("/{issueId}")

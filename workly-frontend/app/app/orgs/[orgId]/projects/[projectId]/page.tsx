@@ -32,10 +32,8 @@ import { Label } from "@/components/ui/label";
 import {
   useOrganization,
   useProject,
-  useBoards,
   useIssues,
   useProjectMembers,
-  useCreateBoard,
   useDeleteProject,
 } from "@/hooks/use-queries";
 
@@ -51,22 +49,11 @@ export default function ProjectDetailPage({
 
   const { data: org } = useOrganization(orgIdNum);
   const { data: project, isLoading } = useProject(orgIdNum, projectIdNum);
-  const { data: boards } = useBoards(orgIdNum, projectIdNum);
   const { data: issues } = useIssues(orgIdNum, projectIdNum);
   const { data: members } = useProjectMembers(orgIdNum, projectIdNum);
-  const createBoard = useCreateBoard();
   const deleteProject = useDeleteProject();
 
-  const [isCreateBoardOpen, setIsCreateBoardOpen] = useState(false);
-  const [boardName, setBoardName] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-
-  const handleCreateBoard = async () => {
-    if (!boardName.trim()) return;
-    await createBoard.mutateAsync({ orgId: orgIdNum, projectId: projectIdNum, name: boardName });
-    setIsCreateBoardOpen(false);
-    setBoardName("");
-  };
 
   const handleDeleteProject = async () => {
     await deleteProject.mutateAsync({ orgId: orgIdNum, projectId: projectIdNum });
@@ -198,45 +185,24 @@ export default function ProjectDetailPage({
 
           <TabsContent value="boards" className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-medium">Boards</h2>
-              <Button size="sm" onClick={() => setIsCreateBoardOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Board
+              <h2 className="text-lg font-medium">Board</h2>
+              <Button size="sm" onClick={() => router.push(`/app/orgs/${orgId}/projects/${projectId}/board`)}>
+                <LayoutGrid className="mr-2 h-4 w-4" />
+                Open Board
               </Button>
             </div>
-            {boards?.length === 0 ? (
-              <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-                  <LayoutGrid className="mb-4 h-8 w-8 text-muted-foreground" />
-                  <h3 className="mb-2 font-medium">No boards yet</h3>
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    Create a board to organize your issues into columns.
-                  </p>
-                  <Button size="sm" onClick={() => setIsCreateBoardOpen(true)}>
-                    Create Board
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {boards?.map((board) => (
-                  <Card
-                    key={board.id}
-                    className="cursor-pointer transition-colors hover:border-foreground/20"
-                    onClick={() =>
-                      router.push(`/app/orgs/${orgId}/projects/${projectId}/board?boardId=${board.id}`)
-                    }
-                  >
-                    <CardHeader>
-                      <CardTitle className="text-base">{board.name}</CardTitle>
-                      <CardDescription>
-                        Created {new Date(board.createdAt).toLocaleDateString()}
-                      </CardDescription>
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
-            )}
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                <LayoutGrid className="mb-4 h-12 w-12 text-muted-foreground" />
+                <h3 className="mb-2 font-medium">Kanban Board</h3>
+                <p className="mb-4 text-sm text-muted-foreground max-w-md">
+                  View and manage all issues in a visual board with columns. Drag and drop issues between columns to update their status.
+                </p>
+                <Button onClick={() => router.push(`/app/orgs/${orgId}/projects/${projectId}/board`)}>
+                  Open Board
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="members" className="space-y-4">
@@ -272,7 +238,7 @@ export default function ProjectDetailPage({
                   <div>
                     <p className="font-medium">Delete this project</p>
                     <p className="text-sm text-muted-foreground">
-                      Once deleted, all boards and issues will be permanently removed.
+                      Once deleted, all issues will be permanently removed.
                     </p>
                   </div>
                   <Button variant="destructive" onClick={() => setDeleteConfirm(true)}>
@@ -286,34 +252,6 @@ export default function ProjectDetailPage({
         </Tabs>
       </main>
 
-      {/* Create Board Dialog */}
-      <Dialog open={isCreateBoardOpen} onOpenChange={setIsCreateBoardOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Board</DialogTitle>
-            <DialogDescription>Add a new board to organize your issues.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="boardName">Board Name</Label>
-              <Input
-                id="boardName"
-                placeholder="Sprint 1"
-                value={boardName}
-                onChange={(e) => setBoardName(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateBoardOpen(false)} className="bg-transparent">
-              Cancel
-            </Button>
-            <Button onClick={handleCreateBoard} disabled={!boardName.trim() || createBoard.isPending}>
-              {createBoard.isPending ? "Creating..." : "Create"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Confirmation */}
       <AlertDialog open={deleteConfirm} onOpenChange={setDeleteConfirm}>
@@ -321,7 +259,7 @@ export default function ProjectDetailPage({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Project?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. All boards and issues in this project will be permanently deleted.
+              This action cannot be undone. All issues in this project will be permanently deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

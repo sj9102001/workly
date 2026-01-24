@@ -7,8 +7,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface BoardRepository extends JpaRepository<Board, Long> {
-    List<Board> findByProjectId(Long projectId);
-    List<Board> findByProjectIdOrderByCreatedAtDesc(Long projectId);
-    Optional<Board> findByIdAndProjectId(Long id, Long projectId);
-    boolean existsByProjectIdAndNameIgnoreCase(Long projectId, String name);
+    Optional<Board> findByProjectId(Long projectId);
+    boolean existsByProjectId(Long projectId);
 }

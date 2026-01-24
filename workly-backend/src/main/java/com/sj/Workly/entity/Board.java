@@ -11,13 +11,10 @@ public class Board {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // MANY boards belong to ONE project
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "project_id", nullable = false)
+    // ONE board belongs to ONE project (OneToOne relationship)
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "project_id", nullable = false, unique = true)
     private Project project;
-
-    @Column(nullable = false)
-    private String name; // e.g. "Scrum Board"
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
@@ -59,14 +56,6 @@ public class Board {
 
     public void setProject(Project project) {
         this.project = project;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
     }
 
     public Instant getCreatedAt() {

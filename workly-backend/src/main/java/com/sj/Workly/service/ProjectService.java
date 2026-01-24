@@ -22,19 +22,22 @@ public class ProjectService {
     private final UserRepository userRepo;
     private final ProjectRepository projectRepo;
     private final ProjectMemberRepository projectMemberRepo;
+    private final BoardService boardService;
 
     public ProjectService(
             OrganizationRepository orgRepo,
             OrgMemberRepository orgMemberRepo,
             UserRepository userRepo,
             ProjectRepository projectRepo,
-            ProjectMemberRepository projectMemberRepo
+            ProjectMemberRepository projectMemberRepo,
+            BoardService boardService
     ) {
         this.orgRepo = orgRepo;
         this.orgMemberRepo = orgMemberRepo;
         this.userRepo = userRepo;
         this.projectRepo = projectRepo;
         this.projectMemberRepo = projectMemberRepo;
+        this.boardService = boardService;
     }
 
     @Transactional
@@ -58,6 +61,9 @@ public class ProjectService {
         pm.setUser(actor);
         pm.setRole(ProjectMember.Role.ADMIN);
         projectMemberRepo.save(pm);
+
+        // Create board with default columns for the project
+        boardService.createBoardForProject(project);
 
         return toProjectResponse(project);
     }

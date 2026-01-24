@@ -2,21 +2,14 @@
 
 import React, { useState, useCallback } from "react";
 import { Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, MoreHorizontal, Palette, Settings2 } from "lucide-react";
+import { Plus, MoreHorizontal, X, GripVertical, Search, Filter } from "lucide-react";
 import { AppTopbar } from "@/components/app-shell/app-topbar";
 import { KanbanSkeleton } from "@/components/app-shell/skeletons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -29,30 +22,41 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   useOrganization,
   useProject,
-  useBoards,
+  useColumns,
   useIssues,
   useCreateIssue,
   useMoveIssue,
-  useCreateBoard,
+  useCreateColumn,
+  useDeleteColumn,
 } from "@/hooks/use-queries";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useQueryClient } from "@tanstack/react-query";
-
-const columns = [
-  { id: "TO_DO", title: "To Do", color: "bg-gray-500" },
-  { id: "IN_PROGRESS", title: "In Progress", color: "bg-blue-500" },
-  { id: "IN_REVIEW", title: "In Review", color: "bg-purple-500" },
-  { id: "DONE", title: "Done", color: "bg-green-500" },
-];
 
 const priorityColors: Record<string, string> = {
   HIGHEST: "bg-red-500",
@@ -62,27 +66,25 @@ const priorityColors: Record<string, string> = {
   LOWEST: "bg-gray-400",
 };
 
-const boardColors = [
-  { name: "Gray", value: "gray", class: "bg-gray-500" },
-  { name: "Red", value: "red", class: "bg-red-500" },
-  { name: "Orange", value: "orange", class: "bg-orange-500" },
-  { name: "Yellow", value: "yellow", class: "bg-yellow-500" },
-  { name: "Green", value: "green", class: "bg-green-500" },
-  { name: "Blue", value: "blue", class: "bg-blue-500" },
-  { name: "Purple", value: "purple", class: "bg-purple-500" },
-  { name: "Pink", value: "pink", class: "bg-pink-500" },
-];
-
 type Issue = {
   id: number;
   title: string;
   description: string | null;
   priority: string;
   status: string;
-  boardId: number | null;
+  columnId: number;
   projectId: number;
   reporterId: number;
   assigneeId: number | null;
+  orderIndex: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type Column = {
+  id: number;
+  boardId: number;
+  name: string;
   orderIndex: number;
   createdAt: string;
   updatedAt: string;
@@ -92,68 +94,95 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
   const orgIdNum = Number(orgId);
   const projectIdNum = Number(projectId);
   const router = useRouter();
-  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const boardIdParam = searchParams.get("boardId");
-  const selectedBoardId = boardIdParam ? Number(boardIdParam) : null;
-
   const { data: org } = useOrganization(orgIdNum);
   const { data: project } = useProject(orgIdNum, projectIdNum);
-  const { data: boards } = useBoards(orgIdNum, projectIdNum);
-  const { data: issues, isLoading } = useIssues(orgIdNum, projectIdNum, {
-    boardId: selectedBoardId || undefined,
-  });
+  const { data: columns = [], isLoading: columnsLoading } = useColumns(orgIdNum, projectIdNum);
+  const { data: allIssues = [], isLoading: issuesLoading } = useIssues(orgIdNum, projectIdNum);
   const createIssue = useCreateIssue();
   const moveIssue = useMoveIssue();
-  const createBoard = useCreateBoard();
+  const createColumn = useCreateColumn();
+  const deleteColumn = useDeleteColumn();
 
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isCreateBoardOpen, setIsCreateBoardOpen] = useState(false);
+  const [isCreateIssueOpen, setIsCreateIssueOpen] = useState(false);
+  const [isCreateColumnOpen, setIsCreateColumnOpen] = useState(false);
+  const [isDeleteColumnOpen, setIsDeleteColumnOpen] = useState(false);
+  const [selectedColumnId, setSelectedColumnId] = useState<number | null>(null);
+  const [columnToDelete, setColumnToDelete] = useState<number | null>(null);
   const [newIssue, setNewIssue] = useState({
     title: "",
     description: "",
     priority: "MEDIUM",
-    status: "TO_DO",
   });
-  const [newBoard, setNewBoard] = useState({ name: "", color: "blue" });
+  const [newColumnName, setNewColumnName] = useState("");
   const [draggingIssue, setDraggingIssue] = useState<Issue | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const handleBoardChange = (boardId: string) => {
-    if (boardId === "all") {
-      router.push(`/app/orgs/${orgId}/projects/${projectId}/board`);
-    } else {
-      router.push(`/app/orgs/${orgId}/projects/${projectId}/board?boardId=${boardId}`);
+  // Sort columns by orderIndex
+  const sortedColumns = [...columns].sort((a, b) => a.orderIndex - b.orderIndex);
+
+  // Get issues for a specific column, sorted by orderIndex
+  const getIssuesByColumn = (columnId: number) => {
+    return allIssues
+      .filter((issue) => issue.columnId === columnId)
+      .filter((issue) => 
+        searchQuery === "" || 
+        issue.title.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .sort((a, b) => a.orderIndex - b.orderIndex);
+  };
+
+  const handleCreateIssue = async (columnId: number) => {
+    if (!newIssue.title.trim()) return;
+    try {
+      await createIssue.mutateAsync({
+        orgId: orgIdNum,
+        projectId: projectIdNum,
+        data: {
+          title: newIssue.title,
+          description: newIssue.description || undefined,
+          priority: newIssue.priority,
+          columnId: columnId,
+        },
+      });
+      setIsCreateIssueOpen(false);
+      setNewIssue({ title: "", description: "", priority: "MEDIUM" });
+      setSelectedColumnId(null);
+    } catch (error) {
+      // Error handled by mutation
     }
   };
 
-  const handleCreate = async () => {
-    if (!newIssue.title.trim()) return;
-    await createIssue.mutateAsync({
-      orgId: orgIdNum,
-      projectId: projectIdNum,
-      data: {
-        title: newIssue.title,
-        description: newIssue.description || undefined,
-        priority: newIssue.priority,
-        status: newIssue.status,
-        boardId: selectedBoardId || undefined,
-      },
-    });
-    setIsCreateOpen(false);
-    setNewIssue({ title: "", description: "", priority: "MEDIUM", status: "TO_DO" });
+  const handleCreateColumn = async () => {
+    if (!newColumnName.trim()) return;
+    try {
+      await createColumn.mutateAsync({
+        orgId: orgIdNum,
+        projectId: projectIdNum,
+        name: newColumnName.trim(),
+      });
+      setIsCreateColumnOpen(false);
+      setNewColumnName("");
+    } catch (error) {
+      // Error handled by mutation
+    }
   };
 
-  const handleCreateBoard = async () => {
-    if (!newBoard.name.trim()) return;
-    await createBoard.mutateAsync({
-      orgId: orgIdNum,
-      projectId: projectIdNum,
-      name: newBoard.name,
-    });
-    setIsCreateBoardOpen(false);
-    setNewBoard({ name: "", color: "blue" });
+  const handleDeleteColumn = async () => {
+    if (!columnToDelete) return;
+    try {
+      await deleteColumn.mutateAsync({
+        orgId: orgIdNum,
+        projectId: projectIdNum,
+        columnId: columnToDelete,
+      });
+      setIsDeleteColumnOpen(false);
+      setColumnToDelete(null);
+    } catch (error) {
+      // Error handled by mutation
+    }
   };
 
   const handleDragStart = (e: React.DragEvent, issue: Issue) => {
@@ -168,33 +197,37 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
   };
 
   const handleDrop = useCallback(
-    async (e: React.DragEvent, targetStatus: string, targetIssue?: Issue) => {
+    async (e: React.DragEvent, targetColumnId: number, targetIssue?: Issue) => {
       e.preventDefault();
+      e.stopPropagation();
 
-      if (!draggingIssue) return;
+      if (!draggingIssue || draggingIssue.columnId === targetColumnId) {
+        setDraggingIssue(null);
+        return;
+      }
 
       // Optimistic update
       const previousIssues = queryClient.getQueryData<Issue[]>([
         "issues",
         orgIdNum,
         projectIdNum,
-        { boardId: selectedBoardId || undefined },
       ]);
 
-      // Update local state optimistically
       queryClient.setQueryData<Issue[]>(
-        ["issues", orgIdNum, projectIdNum, { boardId: selectedBoardId || undefined }],
+        ["issues", orgIdNum, projectIdNum],
         (old) => {
           if (!old) return old;
           return old.map((issue) =>
-            issue.id === draggingIssue.id ? { ...issue, status: targetStatus } : issue
+            issue.id === draggingIssue.id
+              ? { ...issue, columnId: targetColumnId }
+              : issue
           );
         }
       );
 
       try {
-        const moveData: { status?: string; beforeIssueId?: number; afterIssueId?: number } = {
-          status: targetStatus,
+        const moveData: { columnId: number; beforeIssueId?: number; afterIssueId?: number } = {
+          columnId: targetColumnId,
         };
 
         if (targetIssue && targetIssue.id !== draggingIssue.id) {
@@ -207,10 +240,10 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
           issueId: draggingIssue.id,
           data: moveData,
         });
-      } catch {
+      } catch (error) {
         // Rollback on error
         queryClient.setQueryData(
-          ["issues", orgIdNum, projectIdNum, { boardId: selectedBoardId || undefined }],
+          ["issues", orgIdNum, projectIdNum],
           previousIssues
         );
         toast({
@@ -222,12 +255,32 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
 
       setDraggingIssue(null);
     },
-    [draggingIssue, orgIdNum, projectIdNum, selectedBoardId, queryClient, moveIssue, toast]
+    [draggingIssue, orgIdNum, projectIdNum, queryClient, moveIssue, toast]
   );
 
-  const getIssuesByStatus = (status: string) => {
-    return issues?.filter((issue) => issue.status === status).sort((a, b) => a.orderIndex - b.orderIndex) || [];
+  const openCreateIssueDialog = (columnId: number) => {
+    setSelectedColumnId(columnId);
+    setIsCreateIssueOpen(true);
   };
+
+  if (columnsLoading || issuesLoading) {
+    return (
+      <>
+        <AppTopbar
+          breadcrumbs={[
+            { label: "Organizations", href: "/app/orgs" },
+            { label: org?.name || "...", href: `/app/orgs/${orgId}` },
+            { label: "Projects", href: `/app/orgs/${orgId}/projects` },
+            { label: project?.name || "...", href: `/app/orgs/${orgId}/projects/${projectId}` },
+            { label: "Board" },
+          ]}
+        />
+        <main className="flex h-[calc(100vh-56px)] flex-col overflow-hidden p-3">
+          <KanbanSkeleton />
+        </main>
+      </>
+    );
+  }
 
   return (
     <>
@@ -241,207 +294,221 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
         ]}
       />
 
-      <main className="flex h-[calc(100vh-56px)] flex-col overflow-hidden p-3">
-        {/* Header - Fixed to not overflow */}
-        <div className="mb-2 flex items-center gap-2">
-          <h1 className="shrink-0 text-lg font-semibold">Board</h1>
-          <Select value={selectedBoardId ? String(selectedBoardId) : "all"} onValueChange={handleBoardChange}>
-            <SelectTrigger className="h-7 w-[120px] text-xs">
-              <SelectValue placeholder="Board" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Issues</SelectItem>
-              {boards?.map((board) => (
-                <SelectItem key={board.id} value={String(board.id)}>
-                  {board.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          {/* Spacer */}
-          <div className="flex-1" />
-          
-          {/* Actions - Always visible */}
-          <Popover open={isCreateBoardOpen} onOpenChange={setIsCreateBoardOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-7 gap-1 bg-transparent text-xs">
-                <Palette className="h-3 w-3" />
-                <span className="hidden sm:inline">New Board</span>
+      <main className="flex h-[calc(100vh-56px)] flex-col overflow-hidden bg-muted/20">
+        {/* Header */}
+        <div className="border-b bg-background px-4 py-3">
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-semibold">{project?.name || "Board"}</h1>
+            <div className="flex-1" />
+            <div className="relative flex items-center gap-2">
+              <Search className="absolute left-2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search issues..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 w-64 pl-8 text-sm"
+              />
+              <Button variant="outline" size="sm" className="h-8">
+                <Filter className="h-4 w-4" />
               </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64" align="end">
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Board Name</Label>
-                  <Input
-                    placeholder="Sprint 1"
-                    value={newBoard.name}
-                    onChange={(e) => setNewBoard({ ...newBoard, name: e.target.value })}
-                    className="h-8 text-xs"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Color</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {boardColors.map((color) => (
-                      <button
-                        key={color.value}
-                        type="button"
-                        onClick={() => setNewBoard({ ...newBoard, color: color.value })}
-                        className={`h-5 w-5 rounded-full transition-all ${color.class} ${
-                          newBoard.color === color.value ? "ring-2 ring-offset-2 ring-primary" : "hover:scale-110"
-                        }`}
-                        title={color.name}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  className="h-7 w-full text-xs"
-                  onClick={handleCreateBoard}
-                  disabled={!newBoard.name.trim() || createBoard.isPending}
-                >
-                  {createBoard.isPending ? "Creating..." : "Create Board"}
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
-          
-          <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => setIsCreateOpen(true)}>
-            <Plus className="h-3 w-3" />
-            <span className="hidden sm:inline">Issue</span>
-          </Button>
+              <Button
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() => setIsCreateColumnOpen(true)}
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Column</span>
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Kanban Board */}
-        {isLoading ? (
-          <KanbanSkeleton />
-        ) : (
-          <div className="flex flex-1 gap-2 overflow-x-auto pb-4">
-            {columns.map((column, columnIndex) => {
-              const columnIssues = getIssuesByStatus(column.id);
-              return (
-                <motion.div
-                  key={column.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: columnIndex * 0.05, duration: 0.3 }}
-                  className="flex w-56 min-w-[200px] shrink-0 flex-col rounded-lg bg-muted/40"
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, column.id)}
-                >
-                  {/* Column Header */}
-                  <div className="flex items-center justify-between px-2 py-2">
-                    <div className="flex items-center gap-1.5">
-                      <div className={`h-1.5 w-1.5 rounded-full ${column.color}`} />
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{column.title}</span>
-                    </div>
-                    <Badge variant="secondary" className="h-4 px-1 text-[9px]">
+        <div className="flex flex-1 gap-3 overflow-x-auto p-4">
+          {sortedColumns.map((column, columnIndex) => {
+            const columnIssues = getIssuesByColumn(column.id);
+            return (
+              <motion.div
+                key={column.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: columnIndex * 0.05, duration: 0.3 }}
+                className="flex w-72 min-w-[280px] shrink-0 flex-col rounded-lg bg-background shadow-sm"
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, column.id)}
+              >
+                {/* Column Header */}
+                <div className="flex items-center justify-between border-b px-3 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="font-semibold text-sm">{column.name}</h3>
+                    <Badge variant="secondary" className="h-5 px-1.5 text-xs">
                       {columnIssues.length}
                     </Badge>
                   </div>
-
-                  {/* Cards */}
-                  <div className="flex-1 space-y-1.5 overflow-y-auto px-1.5 pb-2">
-                    <AnimatePresence mode="popLayout">
-                      {columnIssues.map((issue, index) => (
-                        <motion.div
-                          key={issue.id}
-                          layout
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          transition={{ duration: 0.2, delay: index * 0.02 }}
-                        >
-                          <Card
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, issue)}
-                            onDragOver={handleDragOver}
-                            onDrop={(e) => {
-                              e.stopPropagation();
-                              handleDrop(e, column.id, issue);
-                            }}
-                            className={`group cursor-grab border-0 bg-background shadow-sm transition-all duration-200 hover:shadow-md active:cursor-grabbing active:scale-[0.98] ${
-                              draggingIssue?.id === issue.id ? "opacity-50 ring-2 ring-primary" : ""
-                            }`}
-                          >
-                            <CardContent className="p-2">
-                              <div className="mb-1 flex items-start justify-between gap-1">
-                                <span className="font-mono text-[9px] text-muted-foreground">
-                                  #{issue.id}
-                                </span>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100 hover:opacity-100 focus:opacity-100">
-                                      <MoreHorizontal className="h-2.5 w-2.5" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem
-                                      onClick={() =>
-                                        router.push(
-                                          `/app/orgs/${orgId}/projects/${projectId}/issues/${issue.id}`
-                                        )
-                                      }
-                                    >
-                                      View Details
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                              <p className="mb-1.5 line-clamp-2 text-[11px] font-medium leading-tight">{issue.title}</p>
-                              <div className="flex items-center justify-between">
-                                <div
-                                  className={`h-1 w-3 rounded-full ${priorityColors[issue.priority]}`}
-                                  title={issue.priority}
-                                />
-                                {issue.assigneeId && (
-                                  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-muted text-[8px] font-medium">
-                                    {issue.assigneeId}
-                                  </div>
-                                )}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-
-                    {/* Empty column drop area */}
-                    {columnIssues.length === 0 && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="flex h-16 items-center justify-center rounded border border-dashed border-muted-foreground/20 text-[10px] text-muted-foreground"
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => openCreateIssueDialog(column.id)}
                       >
-                        Drop here
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create Issue
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setColumnToDelete(column.id);
+                          setIsDeleteColumnOpen(true);
+                        }}
+                        className="text-destructive"
+                      >
+                        <X className="mr-2 h-4 w-4" />
+                        Delete Column
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* Issues */}
+                <div className="flex-1 space-y-2 overflow-y-auto p-2">
+                  <AnimatePresence mode="popLayout">
+                    {columnIssues.map((issue, index) => (
+                      <motion.div
+                        key={issue.id}
+                        layout
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.2, delay: index * 0.02 }}
+                      >
+                        <Card
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, issue)}
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => {
+                            e.stopPropagation();
+                            handleDrop(e, column.id, issue);
+                          }}
+                          className={`group cursor-grab border bg-background shadow-sm transition-all hover:shadow-md active:cursor-grabbing active:scale-[0.98] ${
+                            draggingIssue?.id === issue.id
+                              ? "opacity-50 ring-2 ring-primary"
+                              : ""
+                          }`}
+                          onClick={() =>
+                            router.push(
+                              `/app/orgs/${orgId}/projects/${projectId}/issues/${issue.id}`
+                            )
+                          }
+                        >
+                          <CardContent className="p-3">
+                            <div className="mb-2 flex items-start justify-between gap-2">
+                              <p className="line-clamp-2 text-sm font-medium leading-tight">
+                                {issue.title}
+                              </p>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
+                                  >
+                                    <MoreHorizontal className="h-3.5 w-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      router.push(
+                                        `/app/orgs/${orgId}/projects/${projectId}/issues/${issue.id}`
+                                      );
+                                    }}
+                                  >
+                                    View Details
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div
+                                className={`h-2 w-2 rounded-full ${priorityColors[issue.priority] || "bg-gray-400"}`}
+                                title={issue.priority}
+                              />
+                              {issue.assigneeId && (
+                                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
+                                  {String(issue.assigneeId).slice(-2)}
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
                       </motion.div>
-                    )}
-                  </div>
-                </motion.div>
-              );
-            })}
+                    ))}
+                  </AnimatePresence>
+
+                  {/* Create Issue Button */}
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+                    onClick={() => openCreateIssueDialog(column.id)}
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span className="text-sm">Create Issue</span>
+                  </Button>
+
+                  {/* Empty state */}
+                  {columnIssues.length === 0 && (
+                    <div className="flex h-20 items-center justify-center rounded border border-dashed border-muted-foreground/20 text-xs text-muted-foreground">
+                      {searchQuery ? "No matching issues" : "No issues"}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+
+          {/* Add Column Button */}
+          <div className="flex w-72 min-w-[280px] shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20">
+            <Button
+              variant="ghost"
+              className="flex flex-col gap-2 h-auto py-6"
+              onClick={() => setIsCreateColumnOpen(true)}
+            >
+              <Plus className="h-6 w-6 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Add Column</span>
+            </Button>
           </div>
-        )}
+        </div>
       </main>
 
       {/* Create Issue Dialog */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+      <Dialog open={isCreateIssueOpen} onOpenChange={setIsCreateIssueOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Create Issue</DialogTitle>
-            <DialogDescription>Add a new issue to the board.</DialogDescription>
+            <DialogDescription>
+              Add a new issue to{" "}
+              {sortedColumns.find((c) => c.id === selectedColumnId)?.name || "the column"}.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
+              <Label htmlFor="title">Title *</Label>
               <Input
                 id="title"
                 placeholder="Issue title"
                 value={newIssue.title}
                 onChange={(e) => setNewIssue({ ...newIssue, title: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newIssue.title.trim() && selectedColumnId) {
+                    handleCreateIssue(selectedColumnId);
+                  }
+                }}
               />
             </div>
             <div className="space-y-2">
@@ -451,56 +518,104 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
                 placeholder="Describe the issue..."
                 value={newIssue.description}
                 onChange={(e) => setNewIssue({ ...newIssue, description: e.target.value })}
+                rows={4}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Priority</Label>
-                <Select
-                  value={newIssue.priority}
-                  onValueChange={(v) => setNewIssue({ ...newIssue, priority: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="HIGHEST">Highest</SelectItem>
-                    <SelectItem value="HIGH">High</SelectItem>
-                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                    <SelectItem value="LOW">Low</SelectItem>
-                    <SelectItem value="LOWEST">Lowest</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={newIssue.status}
-                  onValueChange={(v) => setNewIssue({ ...newIssue, status: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="TO_DO">To Do</SelectItem>
-                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                    <SelectItem value="IN_REVIEW">In Review</SelectItem>
-                    <SelectItem value="DONE">Done</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label>Priority</Label>
+              <Select
+                value={newIssue.priority}
+                onValueChange={(v) => setNewIssue({ ...newIssue, priority: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="HIGHEST">Highest</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="LOWEST">Lowest</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateOpen(false)} className="bg-transparent">
+            <Button variant="outline" onClick={() => setIsCreateIssueOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={!newIssue.title.trim() || createIssue.isPending}>
+            <Button
+              onClick={() => selectedColumnId && handleCreateIssue(selectedColumnId)}
+              disabled={!newIssue.title.trim() || !selectedColumnId || createIssue.isPending}
+            >
               {createIssue.isPending ? "Creating..." : "Create Issue"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Column Dialog */}
+      <Dialog open={isCreateColumnOpen} onOpenChange={setIsCreateColumnOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Column</DialogTitle>
+            <DialogDescription>Add a new column to the board.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="column-name">Column Name *</Label>
+              <Input
+                id="column-name"
+                placeholder="e.g., In Progress, Blocked"
+                value={newColumnName}
+                onChange={(e) => setNewColumnName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newColumnName.trim()) {
+                    handleCreateColumn();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateColumnOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateColumn}
+              disabled={!newColumnName.trim() || createColumn.isPending}
+            >
+              {createColumn.isPending ? "Creating..." : "Create Column"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Column Confirmation */}
+      <AlertDialog open={isDeleteColumnOpen} onOpenChange={setIsDeleteColumnOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Column</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this column? This action cannot be undone.
+              {columnToDelete &&
+                getIssuesByColumn(columnToDelete).length > 0 &&
+                ` There are ${getIssuesByColumn(columnToDelete).length} issue(s) in this column.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setColumnToDelete(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteColumn}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
