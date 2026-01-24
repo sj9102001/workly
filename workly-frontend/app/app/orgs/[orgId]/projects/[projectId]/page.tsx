@@ -131,19 +131,19 @@ export default function ProjectDetailPage({
         <Tabs defaultValue="summary" className="flex h-full flex-col overflow-hidden">
           <div className="border-b bg-background px-6">
             <TabsList variant="line" className="h-auto bg-transparent">
-              <TabsTrigger value="summary" className="px-4 py-3">
+              <TabsTrigger value="summary" className="px-4 py-3 cursor-pointer hover:scale-105">
                 <BarChart3 className="mr-2 h-4 w-4" />
                 Summary
               </TabsTrigger>
-              <TabsTrigger value="board" className="px-4 py-3">
+              <TabsTrigger value="board" className="px-4 py-3 cursor-pointer hover:scale-105">
                 <LayoutGrid className="mr-2 h-4 w-4" />
                 Board
               </TabsTrigger>
-              <TabsTrigger value="members" className="px-4 py-3">
+              <TabsTrigger value="members" className="px-4 py-3 cursor-pointer hover:scale-105">
                 <Users className="mr-2 h-4 w-4" />
                 Members
               </TabsTrigger>
-              <TabsTrigger value="settings" className="px-4 py-3">
+              <TabsTrigger value="settings" className="px-4 py-3 cursor-pointer hover:scale-105">
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
               </TabsTrigger>

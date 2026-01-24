@@ -1,3 +1,12 @@
+# Docker Compose configuration for Workly
+#
+# Usage:
+#   - Default (all services): docker-compose up
+#   - Local dev (database only): docker-compose --profile local-dev up
+#
+# The local-dev profile runs only the database, allowing you to run
+# backend and frontend locally while using a containerized database.
+
 services:
   postgres:
     image: postgres:16
@@ -30,6 +39,8 @@ services:
       - .env
     depends_on:
       - postgres
+    profiles:
+      - full
 
   frontend:
     build:
@@ -45,6 +56,8 @@ services:
       - .env
     depends_on:
       - backend
+    profiles:
+      - full
 
 volumes:
   psql-db:
