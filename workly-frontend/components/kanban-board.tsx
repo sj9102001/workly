@@ -1,12 +1,9 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, MoreHorizontal, X, GripVertical, Search, Filter } from "lucide-react";
-import { AppTopbar } from "@/components/app-shell/app-topbar";
-import { KanbanSkeleton } from "@/components/app-shell/skeletons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,8 +44,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
-  useOrganization,
-  useProject,
   useColumns,
   useIssues,
   useCreateIssue,
@@ -90,17 +85,18 @@ type Column = {
   updatedAt: string;
 };
 
-function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: string }) {
-  const orgIdNum = Number(orgId);
-  const projectIdNum = Number(projectId);
+interface KanbanBoardProps {
+  orgId: number;
+  projectId: number;
+}
+
+export function KanbanBoard({ orgId, projectId }: KanbanBoardProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: org } = useOrganization(orgIdNum);
-  const { data: project } = useProject(orgIdNum, projectIdNum);
-  const { data: columns = [], isLoading: columnsLoading } = useColumns(orgIdNum, projectIdNum);
-  const { data: allIssues = [], isLoading: issuesLoading } = useIssues(orgIdNum, projectIdNum);
+  const { data: columns = [], isLoading: columnsLoading } = useColumns(orgId, projectId);
+  const { data: allIssues = [], isLoading: issuesLoading } = useIssues(orgId, projectId);
   const createIssue = useCreateIssue();
   const moveIssue = useMoveIssue();
   const createColumn = useCreateColumn();
@@ -138,8 +134,8 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
     if (!newIssue.title.trim()) return;
     try {
       await createIssue.mutateAsync({
-        orgId: orgIdNum,
-        projectId: projectIdNum,
+        orgId,
+        projectId,
         data: {
           title: newIssue.title,
           description: newIssue.description || undefined,
@@ -159,8 +155,8 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
     if (!newColumnName.trim()) return;
     try {
       await createColumn.mutateAsync({
-        orgId: orgIdNum,
-        projectId: projectIdNum,
+        orgId,
+        projectId,
         name: newColumnName.trim(),
       });
       setIsCreateColumnOpen(false);
@@ -174,8 +170,8 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
     if (!columnToDelete) return;
     try {
       await deleteColumn.mutateAsync({
-        orgId: orgIdNum,
-        projectId: projectIdNum,
+        orgId,
+        projectId,
         columnId: columnToDelete,
       });
       setIsDeleteColumnOpen(false);
@@ -209,12 +205,12 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
       // Optimistic update
       const previousIssues = queryClient.getQueryData<Issue[]>([
         "issues",
-        orgIdNum,
-        projectIdNum,
+        orgId,
+        projectId,
       ]);
 
       queryClient.setQueryData<Issue[]>(
-        ["issues", orgIdNum, projectIdNum],
+        ["issues", orgId, projectId],
         (old) => {
           if (!old) return old;
           return old.map((issue) =>
@@ -235,15 +231,15 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
         }
 
         await moveIssue.mutateAsync({
-          orgId: orgIdNum,
-          projectId: projectIdNum,
+          orgId,
+          projectId,
           issueId: draggingIssue.id,
           data: moveData,
         });
       } catch (error) {
         // Rollback on error
         queryClient.setQueryData(
-          ["issues", orgIdNum, projectIdNum],
+          ["issues", orgId, projectId],
           previousIssues
         );
         toast({
@@ -255,7 +251,7 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
 
       setDraggingIssue(null);
     },
-    [draggingIssue, orgIdNum, projectIdNum, queryClient, moveIssue, toast]
+    [draggingIssue, orgId, projectId, queryClient, moveIssue, toast]
   );
 
   const openCreateIssueDialog = (columnId: number) => {
@@ -265,215 +261,191 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
 
   if (columnsLoading || issuesLoading) {
     return (
-      <>
-        <AppTopbar
-          breadcrumbs={[
-            { label: "Organizations", href: "/app/orgs" },
-            { label: org?.name || "...", href: `/app/orgs/${orgId}` },
-            { label: "Projects", href: `/app/orgs/${orgId}/projects` },
-            { label: project?.name || "...", href: `/app/orgs/${orgId}/projects/${projectId}` },
-            { label: "Board" },
-          ]}
-        />
-        <main className="flex h-[calc(100vh-56px)] flex-col overflow-hidden p-3">
-          <KanbanSkeleton />
-        </main>
-      </>
+      <div className="flex h-[600px] items-center justify-center">
+        <div className="text-sm text-muted-foreground">Loading board...</div>
+      </div>
     );
   }
 
   return (
-    <>
-      <AppTopbar
-        breadcrumbs={[
-          { label: "Organizations", href: "/app/orgs" },
-          { label: org?.name || "...", href: `/app/orgs/${orgId}` },
-          { label: "Projects", href: `/app/orgs/${orgId}/projects` },
-          { label: project?.name || "...", href: `/app/orgs/${orgId}/projects/${projectId}` },
-          { label: "Board" },
-        ]}
-      />
-
-      <main className="flex h-[calc(100vh-56px)] flex-col overflow-hidden bg-muted/20">
-        {/* Header */}
-        <div className="border-b bg-background px-4 py-3">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold">{project?.name || "Board"}</h1>
-            <div className="flex-1" />
-            <div className="relative flex items-center gap-2">
-              <Search className="absolute left-2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search issues..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 w-64 pl-8 text-sm"
-              />
-              <Button variant="outline" size="sm" className="h-8">
-                <Filter className="h-4 w-4" />
-              </Button>
-              <Button
-                size="sm"
-                className="h-8 gap-1.5"
-                onClick={() => setIsCreateColumnOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Column</span>
-              </Button>
-            </div>
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* Header */}
+      <div className="border-b bg-background px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="flex-1" />
+          <div className="relative flex items-center gap-2">
+            <Search className="absolute left-2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search issues..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-8 w-64 pl-8 text-sm"
+            />
+            <Button variant="outline" size="sm" className="h-8">
+              <Filter className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => setIsCreateColumnOpen(true)}
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Column</span>
+            </Button>
           </div>
         </div>
+      </div>
 
-        {/* Kanban Board */}
-        <div className="flex flex-1 gap-3 overflow-x-auto p-4">
-          {sortedColumns.map((column, columnIndex) => {
-            const columnIssues = getIssuesByColumn(column.id);
-            return (
-              <motion.div
-                key={column.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: columnIndex * 0.05, duration: 0.3 }}
-                className="flex w-72 min-w-[280px] shrink-0 flex-col rounded-lg bg-background shadow-sm"
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, column.id)}
-              >
-                {/* Column Header */}
-                <div className="flex items-center justify-between border-b px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <GripVertical className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="font-semibold text-sm">{column.name}</h3>
-                    <Badge variant="secondary" className="h-5 px-1.5 text-xs">
-                      {columnIssues.length}
-                    </Badge>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => openCreateIssueDialog(column.id)}
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Create Issue
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setColumnToDelete(column.id);
-                          setIsDeleteColumnOpen(true);
+      {/* Kanban Board */}
+      <div className="flex flex-1 gap-3 overflow-x-auto p-4">
+        {sortedColumns.map((column, columnIndex) => {
+          const columnIssues = getIssuesByColumn(column.id);
+          return (
+            <motion.div
+              key={column.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: columnIndex * 0.05, duration: 0.3 }}
+              className="flex w-72 min-w-[280px] shrink-0 flex-col rounded-lg bg-background shadow-sm"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, column.id)}
+            >
+              {/* Column Header */}
+              <div className="flex items-center justify-between border-b px-3 py-2.5">
+                <div className="flex items-center gap-2">
+                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="font-semibold text-sm">{column.name}</h3>
+                  <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                    {columnIssues.length}
+                  </Badge>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => openCreateIssueDialog(column.id)}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Issue
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setColumnToDelete(column.id);
+                        setIsDeleteColumnOpen(true);
+                      }}
+                      className="text-destructive"
+                    >
+                      <X className="mr-2 h-4 w-4" />
+                      Delete Column
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {/* Issues */}
+              <div className="flex-1 space-y-2 overflow-y-auto p-2">
+                <AnimatePresence mode="popLayout">
+                  {columnIssues.map((issue, index) => (
+                    <motion.div
+                      key={issue.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2, delay: index * 0.02 }}
+                    >
+                      <Card
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, issue)}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => {
+                          e.stopPropagation();
+                          handleDrop(e, column.id, issue);
                         }}
-                        className="text-destructive"
+                        className={`group cursor-grab border bg-background shadow-sm transition-all hover:shadow-md active:cursor-grabbing active:scale-[0.98] ${
+                          draggingIssue?.id === issue.id
+                            ? "opacity-50 ring-2 ring-primary"
+                            : ""
+                        }`}
+                        onClick={() =>
+                          router.push(
+                            `/app/orgs/${orgId}/projects/${projectId}/issues/${issue.id}`
+                          )
+                        }
                       >
-                        <X className="mr-2 h-4 w-4" />
-                        Delete Column
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+                        <CardContent className="p-3">
+                          <div className="mb-2 flex items-start justify-between gap-2">
+                            <p className="line-clamp-2 text-sm font-medium leading-tight">
+                              {issue.title}
+                            </p>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
+                                >
+                                  <MoreHorizontal className="h-3.5 w-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    router.push(
+                                      `/app/orgs/${orgId}/projects/${projectId}/issues/${issue.id}`
+                                    );
+                                  }}
+                                >
+                                  View Details
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div
+                              className={`h-2 w-2 rounded-full ${priorityColors[issue.priority] || "bg-gray-400"}`}
+                              title={issue.priority}
+                            />
+                            {issue.assigneeId && (
+                              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
+                                {String(issue.assigneeId).slice(-2)}
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
 
-                {/* Issues */}
-                <div className="flex-1 space-y-2 overflow-y-auto p-2">
-                  <AnimatePresence mode="popLayout">
-                    {columnIssues.map((issue, index) => (
-                      <motion.div
-                        key={issue.id}
-                        layout
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.2, delay: index * 0.02 }}
-                      >
-                        <Card
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, issue)}
-                          onDragOver={handleDragOver}
-                          onDrop={(e) => {
-                            e.stopPropagation();
-                            handleDrop(e, column.id, issue);
-                          }}
-                          className={`group cursor-grab border bg-background shadow-sm transition-all hover:shadow-md active:cursor-grabbing active:scale-[0.98] ${
-                            draggingIssue?.id === issue.id
-                              ? "opacity-50 ring-2 ring-primary"
-                              : ""
-                          }`}
-                          onClick={() =>
-                            router.push(
-                              `/app/orgs/${orgId}/projects/${projectId}/issues/${issue.id}`
-                            )
-                          }
-                        >
-                          <CardContent className="p-3">
-                            <div className="mb-2 flex items-start justify-between gap-2">
-                              <p className="line-clamp-2 text-sm font-medium leading-tight">
-                                {issue.title}
-                              </p>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
-                                  >
-                                    <MoreHorizontal className="h-3.5 w-3.5" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      router.push(
-                                        `/app/orgs/${orgId}/projects/${projectId}/issues/${issue.id}`
-                                      );
-                                    }}
-                                  >
-                                    View Details
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <div
-                                className={`h-2 w-2 rounded-full ${priorityColors[issue.priority] || "bg-gray-400"}`}
-                                title={issue.priority}
-                              />
-                              {issue.assigneeId && (
-                                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
-                                  {String(issue.assigneeId).slice(-2)}
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
+                {/* Create Issue Button */}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+                  onClick={() => openCreateIssueDialog(column.id)}
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="text-sm">Create Issue</span>
+                </Button>
 
-                  {/* Create Issue Button */}
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
-                    onClick={() => openCreateIssueDialog(column.id)}
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span className="text-sm">Create Issue</span>
-                  </Button>
+                {/* Empty state */}
+                {columnIssues.length === 0 && (
+                  <div className="flex h-20 items-center justify-center rounded border border-dashed border-muted-foreground/20 text-xs text-muted-foreground">
+                    {searchQuery ? "No matching issues" : "No issues"}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          );
+        })}
 
-                  {/* Empty state */}
-                  {columnIssues.length === 0 && (
-                    <div className="flex h-20 items-center justify-center rounded border border-dashed border-muted-foreground/20 text-xs text-muted-foreground">
-                      {searchQuery ? "No matching issues" : "No issues"}
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
-
-        </div>
-      </main>
+      </div>
 
       {/* Create Issue Dialog */}
       <Dialog open={isCreateIssueOpen} onOpenChange={setIsCreateIssueOpen}>
@@ -605,19 +577,6 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
-  );
-}
-
-export default function KanbanBoardPage({
-  params,
-}: {
-  params: Promise<{ orgId: string; projectId: string }>;
-}) {
-  const resolvedParams = React.use(params);
-  return (
-    <Suspense fallback={<KanbanSkeleton />}>
-      <KanbanBoardContent orgId={resolvedParams.orgId} projectId={resolvedParams.projectId} />
-    </Suspense>
+    </div>
   );
 }
