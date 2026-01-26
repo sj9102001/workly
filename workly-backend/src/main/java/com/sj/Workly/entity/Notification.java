@@ -49,7 +49,7 @@ public class Notification {
         createdAt = Instant.now();
     }
 
-    protected Notification() {}
+    public Notification() {}
 
     public Long getId() {
         return id;

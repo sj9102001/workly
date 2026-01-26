@@ -2,6 +2,7 @@ package com.sj.Workly.entity;
 
 import com.sj.Workly.entity.enums.OutboxStatus;
 import jakarta.persistence.*;
+import org.hibernate.annotations.ColumnTransformer;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -9,6 +10,10 @@ import java.util.UUID;
 @Entity
 @Table(name = "outbox_events")
 public class OutboxEvent {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(nullable = false)
     private String topic; // "org.events"
@@ -29,6 +34,7 @@ public class OutboxEvent {
     private String partitionKey;
 
     @Column(name="payload_json", nullable = false, columnDefinition = "jsonb")
+    @ColumnTransformer(write = "?::jsonb")
     private String payloadJson;
 
     @Enumerated(EnumType.STRING)
@@ -43,6 +49,16 @@ public class OutboxEvent {
 
     @Column(name="published_at")
     private Instant publishedAt;
+
+    @Column(name="created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @PrePersist
+    void onCreate() {
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+    }
 
     public String getTopic() {
         return topic;
@@ -130,5 +146,21 @@ public class OutboxEvent {
 
     public void setPublishedAt(Instant publishedAt) {
         this.publishedAt = publishedAt;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
     }
 }

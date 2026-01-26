@@ -5,9 +5,8 @@ import com.sj.Workly.entity.enums.OutboxStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
-import java.util.UUID;
 
-public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> {
+public interface OutboxEventRepository extends JpaRepository<OutboxEvent, Long> {
 
     List<OutboxEvent> findTop50ByStatusOrderByCreatedAtAsc(OutboxStatus status);
 
