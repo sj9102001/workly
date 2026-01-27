@@ -35,6 +35,9 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-log:/var/lib/zookeeper/log
     healthcheck:
       test: ["CMD", "bash", "-c", "echo stat | nc localhost 2181"]
       interval: 10s
@@ -110,3 +113,5 @@ services:
 volumes:
   psql-db:
   kafka-data:
+  zookeeper-data:
+  zookeeper-log:

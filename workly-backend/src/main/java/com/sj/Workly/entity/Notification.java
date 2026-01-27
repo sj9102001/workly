@@ -30,6 +30,12 @@ public class Notification {
     @Column(nullable = false)
     private String message;
 
+    @Column(name = "action_event", length = 100)
+    private String actionEvent;
+
+    @Column(name = "action_payload", columnDefinition = "jsonb")
+    private String actionPayload;
+
     // Optional references
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "issue_id")
@@ -81,6 +87,22 @@ public class Notification {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getActionEvent() {
+        return actionEvent;
+    }
+
+    public void setActionEvent(String actionEvent) {
+        this.actionEvent = actionEvent;
+    }
+
+    public String getActionPayload() {
+        return actionPayload;
+    }
+
+    public void setActionPayload(String actionPayload) {
+        this.actionPayload = actionPayload;
     }
 
     public Issue getIssue() {

@@ -311,3 +311,39 @@ export const issueApi = {
       }
     ),
 };
+
+// Notification API
+export interface Notification {
+  id: number;
+  type: string;
+  message: string;
+  actionEvent?: string | null;
+  actionPayload?: string | null;
+  createdAt: string;
+  readAt: string | null;
+  read: boolean;
+}
+
+export interface NotificationPage {
+  content: Notification[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
+export const notificationApi = {
+  list: (page = 0, size = 5, unreadOnly = false) =>
+    apiRequest<NotificationPage>(
+      `/notifications?page=${page}&size=${size}&unreadOnly=${unreadOnly}`
+    ),
+  unreadCount: () => apiRequest<number>("/notifications/unread-count"),
+  markAsRead: (id: number) =>
+    apiRequest<void>(`/notifications/${id}/read`, {
+      method: "PATCH",
+    }),
+  markAllAsRead: () =>
+    apiRequest<void>("/notifications/read-all", {
+      method: "PATCH",
+    }),
+};

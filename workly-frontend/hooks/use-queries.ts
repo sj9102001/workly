@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { orgApi, projectApi, boardApi, columnApi, issueApi, inviteApi } from "@/lib/api";
+import { orgApi, projectApi, boardApi, columnApi, issueApi, inviteApi, notificationApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 // Organization hooks
@@ -415,6 +415,36 @@ export function useMoveIssue() {
     onSuccess: (_, { orgId, projectId, issueId }) => {
       queryClient.invalidateQueries({ queryKey: ["issue", orgId, projectId, issueId] });
       queryClient.invalidateQueries({ queryKey: ["issues", orgId, projectId] });
+    },
+  });
+}
+
+// Notification hooks
+export function useNotifications(enabled: boolean, page = 0, size = 5, unreadOnly = false) {
+  return useQuery({
+    queryKey: ["notifications", { page, size, unreadOnly }],
+    queryFn: () => notificationApi.list(page, size, unreadOnly),
+    enabled,
+  });
+}
+
+export function useUnreadNotificationCount(enabled: boolean) {
+  return useQuery({
+    queryKey: ["notifications", "unreadCount"],
+    queryFn: () => notificationApi.unreadCount(),
+    enabled,
+    refetchInterval: 60_000, // keep reasonably fresh
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => notificationApi.markAllAsRead(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications", "unreadCount"] });
     },
   });
 }

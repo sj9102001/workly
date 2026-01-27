@@ -204,6 +204,7 @@ public class InviteService {
             payload.put("invited_email", invite.getInvitedEmail());
             payload.put("invited_role", invite.getInvitedRole() != null ? invite.getInvitedRole().name() : Role.MEMBER.name());
             payload.put("invite_id", invite.getId());
+            payload.put("invite_token", invite.getToken());
             payload.put("expires_at", invite.getExpiresAt().toString());
             
             String payloadJson = objectMapper.writeValueAsString(payload);
