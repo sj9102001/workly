@@ -72,6 +72,11 @@ export function AppSidebar({ currentOrgId, onOrgChange, onCreateOrg }: AppSideba
       href: "/app/orgs",
       icon: Building2,
     },
+    {
+      title: "My Invites",
+      href: "/app/invites",
+      icon: Mail,
+    },
   ];
 
   const orgNavItems = orgId

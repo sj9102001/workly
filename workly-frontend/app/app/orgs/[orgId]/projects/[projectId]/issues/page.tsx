@@ -4,6 +4,7 @@ import { use, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, ArrowUpDown } from "lucide-react";
 import { AppTopbar } from "@/components/app-shell/app-topbar";
+import { IssueDetailModal } from "@/components/app-shell/issue-detail-modal";
 import { NoIssues } from "@/components/app-shell/empty-states";
 import { TableSkeleton } from "@/components/app-shell/skeletons";
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,7 @@ function IssuesPageContent({ orgId, projectId }: { orgId: string; projectId: str
   });
   const createIssue = useCreateIssue();
 
+  const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newIssue, setNewIssue] = useState({
     title: "",
@@ -193,9 +195,7 @@ function IssuesPageContent({ orgId, projectId }: { orgId: string; projectId: str
                   <TableRow
                     key={issue.id}
                     className="cursor-pointer"
-                    onClick={() =>
-                      router.push(`/app/orgs/${orgId}/projects/${projectId}/issues/${issue.id}`)
-                    }
+                    onClick={() => setSelectedIssueId(issue.id)}
                   >
                     <TableCell className="font-mono text-xs text-muted-foreground">
                       #{issue.id}
@@ -317,6 +317,16 @@ function IssuesPageContent({ orgId, projectId }: { orgId: string; projectId: str
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {selectedIssueId !== null && (
+        <IssueDetailModal
+          open={selectedIssueId !== null}
+          onOpenChange={(open) => !open && setSelectedIssueId(null)}
+          orgId={orgIdNum}
+          projectId={projectIdNum}
+          issueId={selectedIssueId}
+        />
+      )}
     </>
   );
 }

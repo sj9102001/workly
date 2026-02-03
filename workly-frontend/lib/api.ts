@@ -189,8 +189,23 @@ export const orgApi = {
     apiRequest<{ id: number; userId: number; userName: string; userEmail: string; role: string; createdAt: string }[]>(`/orgs/${orgId}/members`),
 };
 
+// Current user's invites (invites sent to me)
+export type MyInvite = {
+  id: number;
+  orgId: number;
+  orgName: string;
+  invitedRole: string;
+  status: string;
+  expiresAt: string;
+  createdAt: string;
+  token: string;
+  acceptUrl: string;
+};
+
 // Invite API
 export const inviteApi = {
+  myInvites: () =>
+    apiRequest<MyInvite[]>(`/me/invites`),
   list: (orgId: number) =>
     apiRequest<{ id: number; orgId: number; invitedEmail: string; invitedRole: string; status: string; token: string; expiresAt: string; createdAt: string }[]>(`/orgs/${orgId}/invites`),
   create: (orgId: number, email: string, role: string) =>
@@ -310,4 +325,40 @@ export const issueApi = {
         body: JSON.stringify(data),
       }
     ),
+};
+
+// Notification API
+export interface Notification {
+  id: number;
+  type: string;
+  message: string;
+  actionEvent?: string | null;
+  actionPayload?: string | null;
+  createdAt: string;
+  readAt: string | null;
+  read: boolean;
+}
+
+export interface NotificationPage {
+  content: Notification[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
+export const notificationApi = {
+  list: (page = 0, size = 5, unreadOnly = false) =>
+    apiRequest<NotificationPage>(
+      `/notifications?page=${page}&size=${size}&unreadOnly=${unreadOnly}`
+    ),
+  unreadCount: () => apiRequest<number>("/notifications/unread-count"),
+  markAsRead: (id: number) =>
+    apiRequest<void>(`/notifications/${id}/read`, {
+      method: "PATCH",
+    }),
+  markAllAsRead: () =>
+    apiRequest<void>("/notifications/read-all", {
+      method: "PATCH",
+    }),
 };

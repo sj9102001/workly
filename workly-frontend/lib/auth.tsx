@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { authApi, userApi, setAccessToken, getAccessToken, setOnUnauthorized } from "./api";
 
 interface User {
@@ -30,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const handleUnauthorized = useCallback(() => {
     setUser(null);
@@ -71,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const response = await authApi.login(email, password);
+    queryClient.clear();
     setAccessToken(response.accessToken);
     setUserId(response.userId);
     await refreshUser();
@@ -80,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await authApi.register(name, email, password, organizationName);
     // After registration, login automatically
     const loginResponse = await authApi.login(email, password);
+    queryClient.clear();
     setAccessToken(loginResponse.accessToken);
     setUserId(loginResponse.userId);
     await refreshUser();
@@ -95,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setUserId(null);
     setAccessToken(null);
+    queryClient.clear();
     router.push("/login");
   };
 

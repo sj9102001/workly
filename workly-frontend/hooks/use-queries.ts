@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { orgApi, projectApi, boardApi, columnApi, issueApi, inviteApi } from "@/lib/api";
+import { orgApi, projectApi, boardApi, columnApi, issueApi, inviteApi, notificationApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 // Organization hooks
@@ -79,6 +79,14 @@ export function useOrgMembers(orgId: number | null) {
 }
 
 // Invite hooks
+export function useMyInvites(enabled = true) {
+  return useQuery({
+    queryKey: ["my-invites"],
+    queryFn: () => inviteApi.myInvites(),
+    enabled,
+  });
+}
+
 export function useInvites(orgId: number | null) {
   return useQuery({
     queryKey: ["invites", orgId],
@@ -122,11 +130,13 @@ export function useRevokeInvite() {
 
 
 export function useAcceptInvite() {
+  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: (token: string) => inviteApi.accept(token),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-invites"] });
       toast({ title: "Invite accepted", description: "You have joined the organization." });
     },
     onError: (error: Error) => {
@@ -136,11 +146,13 @@ export function useAcceptInvite() {
 }
 
 export function useDeclineInvite() {
+  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: (token: string) => inviteApi.decline(token),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-invites"] });
       toast({ title: "Invite declined" });
     },
     onError: (error: Error) => {
@@ -415,6 +427,36 @@ export function useMoveIssue() {
     onSuccess: (_, { orgId, projectId, issueId }) => {
       queryClient.invalidateQueries({ queryKey: ["issue", orgId, projectId, issueId] });
       queryClient.invalidateQueries({ queryKey: ["issues", orgId, projectId] });
+    },
+  });
+}
+
+// Notification hooks
+export function useNotifications(enabled: boolean, page = 0, size = 5, unreadOnly = false) {
+  return useQuery({
+    queryKey: ["notifications", { page, size, unreadOnly }],
+    queryFn: () => notificationApi.list(page, size, unreadOnly),
+    enabled,
+  });
+}
+
+export function useUnreadNotificationCount(enabled: boolean) {
+  return useQuery({
+    queryKey: ["notifications", "unreadCount"],
+    queryFn: () => notificationApi.unreadCount(),
+    enabled,
+    refetchInterval: 60_000, // keep reasonably fresh
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => notificationApi.markAllAsRead(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications", "unreadCount"] });
     },
   });
 }

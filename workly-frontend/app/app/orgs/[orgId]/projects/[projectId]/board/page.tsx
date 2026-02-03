@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, MoreHorizontal, X, GripVertical, Search, Filter } from "lucide-react";
 import { AppTopbar } from "@/components/app-shell/app-topbar";
+import { IssueDetailModal } from "@/components/app-shell/issue-detail-modal";
 import { KanbanSkeleton } from "@/components/app-shell/skeletons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -119,6 +120,7 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
   const [newColumnName, setNewColumnName] = useState("");
   const [draggingIssue, setDraggingIssue] = useState<Issue | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null);
 
   // Sort columns by orderIndex
   const sortedColumns = [...columns].sort((a, b) => a.orderIndex - b.orderIndex);
@@ -127,11 +129,23 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
   const getIssuesByColumn = (columnId: number) => {
     return allIssues
       .filter((issue) => issue.columnId === columnId)
-      .filter((issue) => 
-        searchQuery === "" || 
+      .filter((issue) =>
+        searchQuery === "" ||
         issue.title.toLowerCase().includes(searchQuery.toLowerCase())
       )
       .sort((a, b) => a.orderIndex - b.orderIndex);
+  };
+
+  // Map column name to issue status for PATCH move (optional, backend may also derive)
+  const getStatusForColumn = (columnId: number): string | undefined => {
+    const column = sortedColumns.find((c) => c.id === columnId);
+    if (!column?.name) return undefined;
+    const n = column.name.toLowerCase().trim();
+    if (n.includes("to do") || n === "todo") return "TO_DO";
+    if (n.includes("in progress")) return "IN_PROGRESS";
+    if (n.includes("review")) return "IN_REVIEW";
+    if (n.includes("done")) return "DONE";
+    return undefined;
   };
 
   const handleCreateIssue = async (columnId: number) => {
@@ -200,48 +214,59 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
     async (e: React.DragEvent, targetColumnId: number, targetIssue?: Issue) => {
       e.preventDefault();
       e.stopPropagation();
-
-      if (!draggingIssue || draggingIssue.columnId === targetColumnId) {
+      if (!draggingIssue) {
         setDraggingIssue(null);
         return;
       }
 
-      // Optimistic update
+      const isSameColumn = draggingIssue.columnId === targetColumnId;
+      if (isSameColumn && (!targetIssue || targetIssue.id === draggingIssue.id)) {
+        setDraggingIssue(null);
+        return;
+      }
+
       const previousIssues = queryClient.getQueryData<Issue[]>([
         "issues",
         orgIdNum,
         projectIdNum,
       ]);
 
-      queryClient.setQueryData<Issue[]>(
-        ["issues", orgIdNum, projectIdNum],
-        (old) => {
-          if (!old) return old;
-          return old.map((issue) =>
-            issue.id === draggingIssue.id
-              ? { ...issue, columnId: targetColumnId }
-              : issue
-          );
-        }
-      );
+      const statusForColumn = getStatusForColumn(targetColumnId);
+      const moveData: {
+        columnId: number;
+        status?: string;
+        beforeIssueId?: number;
+        afterIssueId?: number;
+      } = { columnId: targetColumnId };
+      if (statusForColumn) moveData.status = statusForColumn;
+
+      if (targetIssue && targetIssue.id !== draggingIssue.id) {
+        moveData.afterIssueId = targetIssue.id;
+      }
+
+      const isCrossColumn = draggingIssue.columnId !== targetColumnId;
+      if (isCrossColumn) {
+        queryClient.setQueryData<Issue[]>(
+          ["issues", orgIdNum, projectIdNum],
+          (old) => {
+            if (!old) return old;
+            return old.map((issue) =>
+              issue.id === draggingIssue.id
+                ? { ...issue, columnId: targetColumnId }
+                : issue
+            );
+          }
+        );
+      }
 
       try {
-        const moveData: { columnId: number; beforeIssueId?: number; afterIssueId?: number } = {
-          columnId: targetColumnId,
-        };
-
-        if (targetIssue && targetIssue.id !== draggingIssue.id) {
-          moveData.afterIssueId = targetIssue.id;
-        }
-
         await moveIssue.mutateAsync({
           orgId: orgIdNum,
           projectId: projectIdNum,
           issueId: draggingIssue.id,
           data: moveData,
         });
-      } catch (error) {
-        // Rollback on error
+      } catch {
         queryClient.setQueryData(
           ["issues", orgIdNum, projectIdNum],
           previousIssues
@@ -255,7 +280,7 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
 
       setDraggingIssue(null);
     },
-    [draggingIssue, orgIdNum, projectIdNum, queryClient, moveIssue, toast]
+    [draggingIssue, orgIdNum, projectIdNum, queryClient, moveIssue, toast, sortedColumns]
   );
 
   const openCreateIssueDialog = (columnId: number) => {
@@ -399,11 +424,7 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
                               ? "opacity-50 ring-2 ring-primary"
                               : ""
                           }`}
-                          onClick={() =>
-                            router.push(
-                              `/app/orgs/${orgId}/projects/${projectId}/issues/${issue.id}`
-                            )
-                          }
+                          onClick={() => setSelectedIssueId(issue.id)}
                         >
                           <CardContent className="p-3">
                             <div className="mb-2 flex items-start justify-between gap-2">
@@ -424,9 +445,7 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
                                   <DropdownMenuItem
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      router.push(
-                                        `/app/orgs/${orgId}/projects/${projectId}/issues/${issue.id}`
-                                      );
+                                      setSelectedIssueId(issue.id);
                                     }}
                                   >
                                     View Details
@@ -605,6 +624,16 @@ function KanbanBoardContent({ orgId, projectId }: { orgId: string; projectId: st
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {selectedIssueId !== null && (
+        <IssueDetailModal
+          open={selectedIssueId !== null}
+          onOpenChange={(open) => !open && setSelectedIssueId(null)}
+          orgId={orgIdNum}
+          projectId={projectIdNum}
+          issueId={selectedIssueId}
+        />
+      )}
     </>
   );
 }

@@ -1,11 +1,11 @@
 # Docker Compose configuration for Workly
 #
 # Usage:
-#   - Default (all services): docker-compose up
-#   - Local dev (database only): docker-compose --profile local-dev up
+#   - Full stack: docker-compose --profile full up
+#   - Local dev (database + kafka): docker-compose up
 #
-# The local-dev profile runs only the database, allowing you to run
-# backend and frontend locally while using a containerized database.
+# Default behavior runs PostgreSQL, Zookeeper, and Kafka, allowing you to run
+# backend and frontend locally while using containerized infrastructure services.
 
 services:
   postgres:
@@ -26,6 +26,51 @@ services:
       timeout: 5s
       retries: 5
 
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: workly-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-log:/var/lib/zookeeper/log
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo stat | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: workly-kafka
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 30s
+      retries: 10
+      start_period: 40s
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+
   backend:
     build:
       context: ./workly-backend
@@ -35,10 +80,16 @@ services:
     ports:
       - "8080:8080"
       - "8081:8081"
+    environment:
+      # Override Kafka bootstrap servers to use Docker service name
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     env_file:
       - .env
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     profiles:
       - full
 
@@ -61,3 +112,6 @@ services:
 
 volumes:
   psql-db:
+  kafka-data:
+  zookeeper-data:
+  zookeeper-log:

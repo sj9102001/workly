@@ -2,6 +2,7 @@ package com.sj.Workly.controller;
 
 import com.sj.Workly.dto.invite.CreateInviteRequest;
 import com.sj.Workly.dto.invite.InviteResponse;
+import com.sj.Workly.dto.invite.MyInviteResponse;
 import com.sj.Workly.entity.User;
 import com.sj.Workly.service.InviteService;
 import jakarta.validation.Valid;
@@ -32,6 +33,12 @@ public class InviteController {
     public List<InviteResponse> listInvites(@AuthenticationPrincipal User user,
                                             @PathVariable Long orgId) {
         return inviteService.listOrgInvites(user, orgId);
+    }
+
+    /** List invites sent to the current user. No request body. Use token/acceptUrl to open invite page. */
+    @GetMapping("/me/invites")
+    public List<MyInviteResponse> myInvites(@AuthenticationPrincipal User user) {
+        return inviteService.listInvitesForMe(user);
     }
 
     // Revoke invite (ADMIN/OWNER)
