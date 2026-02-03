@@ -1,5 +1,6 @@
 package com.sj.Workly.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sj.Workly.dto.notification.NotificationResponse;
 import com.sj.Workly.entity.Notification;
 import com.sj.Workly.entity.User;
@@ -17,9 +18,11 @@ import java.time.Instant;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final ObjectMapper objectMapper;
 
-    public NotificationService(NotificationRepository notificationRepository) {
+    public NotificationService(NotificationRepository notificationRepository, ObjectMapper objectMapper) {
         this.notificationRepository = notificationRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -68,7 +71,12 @@ public class NotificationService {
         r.setType(n.getType().name());
         r.setMessage(n.getMessage());
         r.setActionEvent(n.getActionEvent());
-        r.setActionPayload(n.getActionPayload());
+        try {
+            r.setActionPayload(n.getActionPayload() != null && !n.getActionPayload().isBlank()
+                    ? objectMapper.readTree(n.getActionPayload()) : null);
+        } catch (Exception e) {
+            r.setActionPayload(null);
+        }
         r.setCreatedAt(n.getCreatedAt());
         r.setReadAt(n.getReadAt());
         r.setRead(n.getReadAt() != null);

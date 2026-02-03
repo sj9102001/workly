@@ -158,6 +158,16 @@ public class IssueService {
         return toResponse(issue);
     }
 
+    /**
+     * Move an issue to another column (board) and/or change its position within the column.
+     * Used when dragging an issue in the Kanban UI.
+     * <ul>
+     *   <li>Board change: issue.column is set to the target column (req.columnId).</li>
+     *   <li>Position: issue.orderIndex is set so that, when issues are sorted by orderIndex ASC,
+     *   the moved issue appears between beforeIssueId and afterIssueId (or at top/bottom if only one is given).</li>
+     *   <li>Status: optional; if req.status is set, issue.status is updated (e.g. column "Done" → DONE).</li>
+     * </ul>
+     */
     @Transactional
     public IssueResponse move(User actor, Long projectId, Long issueId, MoveIssueRequest req) {
         requireProjectMember(actor.getId(), projectId);
@@ -172,15 +182,15 @@ public class IssueService {
             throw new NotFoundException("Column does not belong to this project");
         }
 
-        // 1) status
+        // 1) status (optional; e.g. frontend can send status matching target column)
         if (req.getStatus() != null) {
             issue.setStatus(req.getStatus());
         }
 
-        // 2) column
+        // 2) column = which board/column the issue now lives in
         issue.setColumn(targetColumn);
 
-        // 3) ordering (orderIndex)
+        // 3) orderIndex = position within that column (for drag order)
         Integer newOrderIndex = computeNewOrderIndex(req.getColumnId(), req.getBeforeIssueId(), req.getAfterIssueId());
         issue.setOrderIndex(newOrderIndex);
 
@@ -188,7 +198,7 @@ public class IssueService {
         return toResponse(issue);
     }
 
-    // Computes an orderIndex value so sorting by orderIndex ASC gives correct ordering.
+    /** Computes orderIndex so that sorting by orderIndex ASC gives correct order in the column. */
     private Integer computeNewOrderIndex(Long columnId, Long beforeId, Long afterId) {
 
         Issue before = null;

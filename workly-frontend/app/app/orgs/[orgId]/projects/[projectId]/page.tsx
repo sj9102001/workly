@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, LayoutGrid, List, Users, Settings, CheckSquare, Trash2, BarChart3 } from "lucide-react";
+import { Plus, LayoutGrid, List, Users, Settings, Trash2, BarChart3, UserMinus } from "lucide-react";
 import { AppTopbar } from "@/components/app-shell/app-topbar";
 import { PageSkeleton } from "@/components/app-shell/skeletons";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -28,13 +35,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/lib/auth";
 import {
   useOrganization,
   useProject,
   useIssues,
   useProjectMembers,
+  useOrgMembers,
+  useAddProjectMember,
+  useRemoveProjectMember,
   useDeleteProject,
 } from "@/hooks/use-queries";
 
@@ -48,17 +58,57 @@ export default function ProjectDetailPage({
   const projectIdNum = Number(projectId);
   const router = useRouter();
 
+  const { userId: currentUserId } = useAuth();
   const { data: org } = useOrganization(orgIdNum);
   const { data: project, isLoading } = useProject(orgIdNum, projectIdNum);
   const { data: issues } = useIssues(orgIdNum, projectIdNum);
   const { data: members } = useProjectMembers(orgIdNum, projectIdNum);
+  const { data: orgMembers } = useOrgMembers(orgIdNum);
+  const addProjectMember = useAddProjectMember();
+  const removeProjectMember = useRemoveProjectMember();
   const deleteProject = useDeleteProject();
 
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
+  const [addMemberUserId, setAddMemberUserId] = useState<string>("");
+  const [addMemberRole, setAddMemberRole] = useState<string>("MEMBER");
+  const [removeMemberUserId, setRemoveMemberUserId] = useState<number | null>(null);
+
+  const currentUserProjectRole = members?.find((m) => m.userId === currentUserId)?.role;
+  const canManageMembers =
+    currentUserProjectRole === "ADMIN" || currentUserProjectRole === "OWNER";
+
+  const projectMemberUserIds = new Set(members?.map((m) => m.userId) ?? []);
+  const orgMembersNotInProject = orgMembers?.filter(
+    (om) => !projectMemberUserIds.has(om.userId)
+  ) ?? [];
 
   const handleDeleteProject = async () => {
     await deleteProject.mutateAsync({ orgId: orgIdNum, projectId: projectIdNum });
     router.push(`/app/orgs/${orgId}/projects`);
+  };
+
+  const handleAddMember = async () => {
+    if (!addMemberUserId || addMemberUserId === "__none__") return;
+    await addProjectMember.mutateAsync({
+      orgId: orgIdNum,
+      projectId: projectIdNum,
+      userId: Number(addMemberUserId),
+      role: addMemberRole,
+    });
+    setAddMemberOpen(false);
+    setAddMemberUserId("");
+    setAddMemberRole("MEMBER");
+  };
+
+  const handleRemoveMember = async () => {
+    if (removeMemberUserId === null) return;
+    await removeProjectMember.mutateAsync({
+      orgId: orgIdNum,
+      projectId: projectIdNum,
+      userId: removeMemberUserId,
+    });
+    setRemoveMemberUserId(null);
   };
 
   if (isLoading) {
@@ -196,9 +246,20 @@ export default function ProjectDetailPage({
             </TabsContent>
 
             <TabsContent value="members" className="m-0 h-full space-y-4 p-6">
-              <h2 className="text-lg font-medium">Project Members</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-medium">Project Members</h2>
+                {canManageMembers && (
+                  <Button onClick={() => setAddMemberOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add member
+                  </Button>
+                )}
+              </div>
               {members?.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No members assigned to this project yet.</p>
+                <p className="text-sm text-muted-foreground">
+                  No members assigned to this project yet.
+                  {canManageMembers && " Add members from your organization."}
+                </p>
               ) : (
                 <div className="rounded-md border border-border">
                   {members?.map((member) => (
@@ -210,7 +271,19 @@ export default function ProjectDetailPage({
                         <p className="font-medium">{member.userName}</p>
                         <p className="text-sm text-muted-foreground">{member.userEmail}</p>
                       </div>
-                      <span className="text-sm text-muted-foreground">{member.role}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-muted-foreground">{member.role}</span>
+                        {canManageMembers && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setRemoveMemberUserId(member.userId)}
+                          >
+                            <UserMinus className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -243,6 +316,85 @@ export default function ProjectDetailPage({
         </Tabs>
       </main>
 
+
+      {/* Add Member Dialog */}
+      <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add member to project</DialogTitle>
+            <DialogDescription>
+              Add an organization member to this project. Only org members not already in the project are listed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Member</Label>
+              <Select value={addMemberUserId} onValueChange={setAddMemberUserId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {orgMembersNotInProject.length === 0 ? (
+                    <SelectItem value="__none__" disabled>
+                      No org members available to add
+                    </SelectItem>
+                  ) : (
+                    orgMembersNotInProject.map((om) => (
+                      <SelectItem key={om.userId} value={String(om.userId)}>
+                        {om.userName} ({om.userEmail})
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Select value={addMemberRole} onValueChange={setAddMemberRole}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MEMBER">Member</SelectItem>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddMemberOpen(false)} className="bg-transparent">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddMember}
+              disabled={!addMemberUserId || addMemberUserId === "__none__" || addProjectMember.isPending}
+            >
+              {addProjectMember.isPending ? "Adding..." : "Add member"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove Member Confirmation */}
+      <AlertDialog open={removeMemberUserId !== null} onOpenChange={() => setRemoveMemberUserId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove member from project?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the member from the project. They will no longer have access to project boards and issues.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoveMember}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {removeProjectMember.isPending ? "Removing..." : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Confirmation */}
       <AlertDialog open={deleteConfirm} onOpenChange={setDeleteConfirm}>

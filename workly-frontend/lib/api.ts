@@ -189,8 +189,23 @@ export const orgApi = {
     apiRequest<{ id: number; userId: number; userName: string; userEmail: string; role: string; createdAt: string }[]>(`/orgs/${orgId}/members`),
 };
 
+// Current user's invites (invites sent to me)
+export type MyInvite = {
+  id: number;
+  orgId: number;
+  orgName: string;
+  invitedRole: string;
+  status: string;
+  expiresAt: string;
+  createdAt: string;
+  token: string;
+  acceptUrl: string;
+};
+
 // Invite API
 export const inviteApi = {
+  myInvites: () =>
+    apiRequest<MyInvite[]>(`/me/invites`),
   list: (orgId: number) =>
     apiRequest<{ id: number; orgId: number; invitedEmail: string; invitedRole: string; status: string; token: string; expiresAt: string; createdAt: string }[]>(`/orgs/${orgId}/invites`),
   create: (orgId: number, email: string, role: string) =>

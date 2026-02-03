@@ -1,6 +1,8 @@
 package com.sj.Workly.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.ColumnTransformer;
+
 import java.time.Instant;
 
 @Entity
@@ -34,6 +36,7 @@ public class Notification {
     private String actionEvent;
 
     @Column(name = "action_payload", columnDefinition = "jsonb")
+    @ColumnTransformer(write = "?::jsonb")
     private String actionPayload;
 
     // Optional references

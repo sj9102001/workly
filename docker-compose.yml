@@ -1,11 +1,11 @@
 # Docker Compose configuration for Workly
 #
 # Usage:
-#   - Default (all services): docker-compose up
-#   - Local dev (database only): docker-compose --profile local-dev up
+#   - Full stack: docker-compose --profile full up
+#   - Local dev (database + kafka): docker-compose up
 #
-# The local-dev profile runs only the database, allowing you to run
-# backend and frontend locally while using a containerized database.
+# Default behavior runs PostgreSQL, Zookeeper, and Kafka, allowing you to run
+# backend and frontend locally while using containerized infrastructure services.
 
 services:
   postgres:

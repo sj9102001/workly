@@ -3,6 +3,7 @@ package com.sj.Workly.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sj.Workly.dto.invite.CreateInviteRequest;
 import com.sj.Workly.dto.invite.InviteResponse;
+import com.sj.Workly.dto.invite.MyInviteResponse;
 import com.sj.Workly.entity.Invite;
 import com.sj.Workly.entity.OrgMember;
 import com.sj.Workly.entity.Organization;
@@ -102,6 +103,16 @@ public class InviteService {
                 .toList();
     }
 
+    /** List invites sent to the current user (by email). Excludes REVOKED. Used for "my invites" / accept page. */
+    @Transactional(readOnly = true)
+    public List<MyInviteResponse> listInvitesForMe(User actor) {
+        return inviteRepo.findByInvitedEmailIgnoreCaseOrderByCreatedAtDesc(actor.getEmail())
+                .stream()
+                .filter(i -> i.getStatus() != InviteStatus.REVOKED)
+                .map(this::toMyInviteResponse)
+                .toList();
+    }
+
     @Transactional
     public void revokeInvite(User actor, Long inviteId) {
         Invite invite = inviteRepo.findById(inviteId)
@@ -192,6 +203,20 @@ public class InviteService {
         r.setExpiresAt(i.getExpiresAt());
         r.setCreatedAt(i.getCreatedAt());
         if (includeToken) r.setToken(i.getToken());
+        return r;
+    }
+
+    private MyInviteResponse toMyInviteResponse(Invite i) {
+        MyInviteResponse r = new MyInviteResponse();
+        r.setId(i.getId());
+        r.setOrgId(i.getOrg().getId());
+        r.setOrgName(i.getOrg().getName() != null ? i.getOrg().getName() : "Organization");
+        r.setInvitedRole(i.getInvitedRole());
+        r.setStatus(i.getStatus());
+        r.setExpiresAt(i.getExpiresAt());
+        r.setCreatedAt(i.getCreatedAt());
+        r.setToken(i.getToken());
+        r.setAcceptUrl("/invite/" + i.getToken());
         return r;
     }
 

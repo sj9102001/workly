@@ -1,5 +1,7 @@
 package com.sj.Workly.dto.notification;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import java.time.Instant;
 
 public class NotificationResponse {
@@ -8,7 +10,8 @@ public class NotificationResponse {
     private String type;
     private String message;
     private String actionEvent;
-    private String actionPayload;
+    /** Frontend-facing payload as JSON object (e.g. for click handlers, navigation). */
+    private JsonNode actionPayload;
     private String actionUrl;
     private Long inviteId;
     private Instant createdAt;
@@ -47,11 +50,11 @@ public class NotificationResponse {
         this.actionEvent = actionEvent;
     }
 
-    public String getActionPayload() {
+    public JsonNode getActionPayload() {
         return actionPayload;
     }
 
-    public void setActionPayload(String actionPayload) {
+    public void setActionPayload(JsonNode actionPayload) {
         this.actionPayload = actionPayload;
     }
 

@@ -79,6 +79,14 @@ export function useOrgMembers(orgId: number | null) {
 }
 
 // Invite hooks
+export function useMyInvites(enabled = true) {
+  return useQuery({
+    queryKey: ["my-invites"],
+    queryFn: () => inviteApi.myInvites(),
+    enabled,
+  });
+}
+
 export function useInvites(orgId: number | null) {
   return useQuery({
     queryKey: ["invites", orgId],
@@ -122,11 +130,13 @@ export function useRevokeInvite() {
 
 
 export function useAcceptInvite() {
+  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: (token: string) => inviteApi.accept(token),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-invites"] });
       toast({ title: "Invite accepted", description: "You have joined the organization." });
     },
     onError: (error: Error) => {
@@ -136,11 +146,13 @@ export function useAcceptInvite() {
 }
 
 export function useDeclineInvite() {
+  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: (token: string) => inviteApi.decline(token),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-invites"] });
       toast({ title: "Invite declined" });
     },
     onError: (error: Error) => {
