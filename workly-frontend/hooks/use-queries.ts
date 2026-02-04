@@ -1,7 +1,16 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { orgApi, projectApi, boardApi, columnApi, issueApi, inviteApi, notificationApi } from "@/lib/api";
+import {
+  orgApi,
+  projectApi,
+  boardApi,
+  columnApi,
+  issueApi,
+  inviteApi,
+  notificationApi,
+  commentApi,
+} from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 // Organization hooks
@@ -427,6 +436,83 @@ export function useMoveIssue() {
     onSuccess: (_, { orgId, projectId, issueId }) => {
       queryClient.invalidateQueries({ queryKey: ["issue", orgId, projectId, issueId] });
       queryClient.invalidateQueries({ queryKey: ["issues", orgId, projectId] });
+    },
+  });
+}
+
+// Issue comment hooks
+export function useIssueComments(
+  orgId: number | null,
+  projectId: number | null,
+  issueId: number | null
+) {
+  return useQuery({
+    queryKey: ["issueComments", orgId, projectId, issueId],
+    queryFn: () => commentApi.list(orgId!, projectId!, issueId!),
+    enabled: !!orgId && !!projectId && !!issueId,
+  });
+}
+
+export function useAddIssueComment() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: ({
+      orgId,
+      projectId,
+      issueId,
+      body,
+    }: {
+      orgId: number;
+      projectId: number;
+      issueId: number;
+      body: string;
+    }) => commentApi.add(orgId, projectId, issueId, body),
+    onSuccess: (_, { orgId, projectId, issueId }) => {
+      queryClient.invalidateQueries({
+        queryKey: ["issueComments", orgId, projectId, issueId],
+      });
+      toast({ title: "Comment added" });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+export function useDeleteIssueComment() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: ({
+      orgId,
+      projectId,
+      issueId,
+      commentId,
+    }: {
+      orgId: number;
+      projectId: number;
+      issueId: number;
+      commentId: number;
+    }) => commentApi.delete(orgId, projectId, issueId, commentId),
+    onSuccess: (_, { orgId, projectId, issueId }) => {
+      queryClient.invalidateQueries({
+        queryKey: ["issueComments", orgId, projectId, issueId],
+      });
+      toast({ title: "Comment deleted" });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 }

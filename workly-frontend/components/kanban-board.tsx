@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, MoreHorizontal, X, GripVertical, Search, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -51,6 +50,7 @@ import {
   useCreateColumn,
   useDeleteColumn,
 } from "@/hooks/use-queries";
+import { IssueDetailModal } from "@/components/app-shell/issue-detail-modal";
 import { useQueryClient } from "@tanstack/react-query";
 
 const priorityColors: Record<string, string> = {
@@ -91,7 +91,6 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ orgId, projectId }: KanbanBoardProps) {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -115,6 +114,7 @@ export function KanbanBoard({ orgId, projectId }: KanbanBoardProps) {
   const [newColumnName, setNewColumnName] = useState("");
   const [draggingIssue, setDraggingIssue] = useState<Issue | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null);
 
   // Sort columns by orderIndex
   const sortedColumns = [...columns].sort((a, b) => a.orderIndex - b.orderIndex);
@@ -372,18 +372,14 @@ export function KanbanBoard({ orgId, projectId }: KanbanBoardProps) {
                             ? "opacity-50 ring-2 ring-primary"
                             : ""
                         }`}
-                        onClick={() =>
-                          router.push(
-                            `/app/orgs/${orgId}/projects/${projectId}/issues/${issue.id}`
-                          )
-                        }
+                        onClick={() => setSelectedIssueId(issue.id)}
                       >
                         <CardContent className="p-3">
                           <div className="mb-2 flex items-start justify-between gap-2">
                             <p className="line-clamp-2 text-sm font-medium leading-tight">
                               {issue.title}
                             </p>
-                            <DropdownMenu>
+                              <DropdownMenu>
                               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                 <Button
                                   variant="ghost"
@@ -393,13 +389,11 @@ export function KanbanBoard({ orgId, projectId }: KanbanBoardProps) {
                                   <MoreHorizontal className="h-3.5 w-3.5" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
+                                <DropdownMenuContent align="end">
                                 <DropdownMenuItem
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    router.push(
-                                      `/app/orgs/${orgId}/projects/${projectId}/issues/${issue.id}`
-                                    );
+                                      setSelectedIssueId(issue.id);
                                   }}
                                 >
                                   View Details
@@ -577,6 +571,16 @@ export function KanbanBoard({ orgId, projectId }: KanbanBoardProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {selectedIssueId !== null && (
+        <IssueDetailModal
+          open={selectedIssueId !== null}
+          onOpenChange={(open) => !open && setSelectedIssueId(null)}
+          orgId={orgId}
+          projectId={projectId}
+          issueId={selectedIssueId}
+        />
+      )}
     </div>
   );
 }

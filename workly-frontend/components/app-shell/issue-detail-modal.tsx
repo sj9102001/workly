@@ -43,6 +43,8 @@ import {
   useUpdateIssue,
   useMoveIssue,
 } from "@/hooks/use-queries";
+import { useAuth } from "@/lib/auth";
+import { IssueComments } from "@/components/app-shell/issue-comments";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const priorityColors: Record<string, string> = {
@@ -68,6 +70,7 @@ export function IssueDetailModal({
   projectId,
   issueId,
 }: IssueDetailModalProps) {
+  const { userId: currentUserId } = useAuth();
   const { data: org } = useOrganization(open ? orgId : null);
   const { data: project } = useProject(open ? orgId : null, projectId);
   const { data: columns } = useColumns(open ? orgId : null, open ? projectId : null);
@@ -130,7 +133,7 @@ export function IssueDetailModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="max-w-[96vw] w-full h-[94vh] max-h-[94vh] overflow-hidden flex flex-col p-0 gap-0"
+        className="!max-w-[1200px] w-full h-[94vh] max-h-[94vh] overflow-hidden flex flex-col p-0 gap-0"
       >
         <div className="flex items-center justify-between border-b px-6 py-3 shrink-0">
           <div className="flex items-center gap-4">
@@ -253,40 +256,13 @@ export function IssueDetailModal({
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-sm font-medium">Activity</h3>
-                  <Tabs defaultValue="all" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4">
-                      <TabsTrigger value="all">All</TabsTrigger>
-                      <TabsTrigger value="comments">Comments</TabsTrigger>
-                      <TabsTrigger value="history">History</TabsTrigger>
-                      <TabsTrigger value="worklog">Work log</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="all" className="space-y-4 mt-4">
-                      <div className="flex gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback>SJ</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <Textarea
-                            placeholder="Add a comment..."
-                            className="min-h-[80px] resize-none"
-                          />
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            Pro tip: press M to comment
-                          </p>
-                        </div>
-                      </div>
-                    </TabsContent>
-                    <TabsContent value="comments" className="mt-4">
-                      <p className="text-sm text-muted-foreground">No comments yet.</p>
-                    </TabsContent>
-                    <TabsContent value="history" className="mt-4">
-                      <p className="text-sm text-muted-foreground">No history yet.</p>
-                    </TabsContent>
-                    <TabsContent value="worklog" className="mt-4">
-                      <p className="text-sm text-muted-foreground">No work logged yet.</p>
-                    </TabsContent>
-                  </Tabs>
+                  <h3 className="text-sm font-medium">Comments</h3>
+                  <IssueComments
+                    orgId={orgId}
+                    projectId={projectId}
+                    issueId={issueId}
+                    currentUserId={currentUserId ?? null}
+                  />
                 </div>
               </div>
 

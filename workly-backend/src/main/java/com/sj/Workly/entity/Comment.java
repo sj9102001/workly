@@ -32,7 +32,7 @@ public class Comment {
         createdAt = Instant.now();
     }
 
-    protected Comment() {}
+    public Comment() {}
 
     public Long getId() {
         return id;

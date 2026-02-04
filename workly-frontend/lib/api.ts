@@ -293,36 +293,148 @@ export const issueApi = {
     if (params?.columnId) searchParams.set("columnId", String(params.columnId));
     if (params?.status) searchParams.set("status", params.status);
     const query = searchParams.toString();
-    return apiRequest<{ id: number; title: string; description: string | null; priority: string; status: string; columnId: number; projectId: number; reporterId: number; assigneeId: number | null; orderIndex: number; createdAt: string; updatedAt: string }[]>(
-      `/orgs/${orgId}/projects/${projectId}/issues${query ? `?${query}` : ""}`
-    );
+    return apiRequest<{
+      id: number;
+      title: string;
+      description: string | null;
+      priority: string;
+      status: string;
+      columnId: number;
+      projectId: number;
+      reporterId: number;
+      assigneeId: number | null;
+      orderIndex: number;
+      createdAt: string;
+      updatedAt: string;
+    }[]>(`/orgs/${orgId}/projects/${projectId}/issues${query ? `?${query}` : ""}`);
   },
   get: (orgId: number, projectId: number, issueId: number) =>
-    apiRequest<{ id: number; title: string; description: string | null; priority: string; status: string; columnId: number; projectId: number; reporterId: number; assigneeId: number | null; orderIndex: number; createdAt: string; updatedAt: string }>(
-      `/orgs/${orgId}/projects/${projectId}/issues/${issueId}`
+    apiRequest<{
+      id: number;
+      title: string;
+      description: string | null;
+      priority: string;
+      status: string;
+      columnId: number;
+      projectId: number;
+      reporterId: number;
+      assigneeId: number | null;
+      orderIndex: number;
+      createdAt: string;
+      updatedAt: string;
+    }>(`/orgs/${orgId}/projects/${projectId}/issues/${issueId}`),
+  create: (
+    orgId: number,
+    projectId: number,
+    data: {
+      title: string;
+      description?: string;
+      priority: string;
+      status?: string;
+      columnId: number;
+      assigneeId?: number;
+    }
+  ) =>
+    apiRequest<{
+      id: number;
+      title: string;
+      description: string | null;
+      priority: string;
+      status: string;
+      columnId: number;
+      projectId: number;
+      reporterId: number;
+      assigneeId: number | null;
+      orderIndex: number;
+      createdAt: string;
+      updatedAt: string;
+    }>(`/orgs/${orgId}/projects/${projectId}/issues`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (
+    orgId: number,
+    projectId: number,
+    issueId: number,
+    data: {
+      title?: string;
+      description?: string;
+      priority?: string;
+      status?: string;
+      columnId?: number;
+      assigneeId?: number;
+    }
+  ) =>
+    apiRequest<{
+      id: number;
+      title: string;
+      description: string | null;
+      priority: string;
+      status: string;
+      columnId: number;
+      projectId: number;
+      reporterId: number;
+      assigneeId: number | null;
+      orderIndex: number;
+      createdAt: string;
+      updatedAt: string;
+    }>(`/orgs/${orgId}/projects/${projectId}/issues/${issueId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  move: (
+    orgId: number,
+    projectId: number,
+    issueId: number,
+    data: { columnId: number; status?: string; beforeIssueId?: number; afterIssueId?: number }
+  ) =>
+    apiRequest<{
+      id: number;
+      title: string;
+      description: string | null;
+      priority: string;
+      status: string;
+      columnId: number;
+      projectId: number;
+      reporterId: number;
+      assigneeId: number | null;
+      orderIndex: number;
+      createdAt: string;
+      updatedAt: string;
+    }>(`/orgs/${orgId}/projects/${projectId}/issues/${issueId}/move`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+};
+
+// Issue comments API
+export type IssueComment = {
+  id: number;
+  issueId: number;
+  authorId: number;
+  authorName: string;
+  body: string;
+  createdAt: string;
+};
+
+export const commentApi = {
+  list: (orgId: number, projectId: number, issueId: number) =>
+    apiRequest<IssueComment[]>(
+      `/orgs/${orgId}/projects/${projectId}/issues/${issueId}/comments`
     ),
-  create: (orgId: number, projectId: number, data: { title: string; description?: string; priority: string; status?: string; columnId: number; assigneeId?: number }) =>
-    apiRequest<{ id: number; title: string; description: string | null; priority: string; status: string; columnId: number; projectId: number; reporterId: number; assigneeId: number | null; orderIndex: number; createdAt: string; updatedAt: string }>(
-      `/orgs/${orgId}/projects/${projectId}/issues`,
+  add: (orgId: number, projectId: number, issueId: number, body: string) =>
+    apiRequest<IssueComment>(
+      `/orgs/${orgId}/projects/${projectId}/issues/${issueId}/comments`,
       {
         method: "POST",
-        body: JSON.stringify(data),
+        body: JSON.stringify({ body }),
       }
     ),
-  update: (orgId: number, projectId: number, issueId: number, data: { title?: string; description?: string; priority?: string; status?: string; columnId?: number; assigneeId?: number }) =>
-    apiRequest<{ id: number; title: string; description: string | null; priority: string; status: string; columnId: number; projectId: number; reporterId: number; assigneeId: number | null; orderIndex: number; createdAt: string; updatedAt: string }>(
-      `/orgs/${orgId}/projects/${projectId}/issues/${issueId}`,
+  delete: (orgId: number, projectId: number, issueId: number, commentId: number) =>
+    apiRequest<void>(
+      `/orgs/${orgId}/projects/${projectId}/issues/${issueId}/comments/${commentId}`,
       {
-        method: "PUT",
-        body: JSON.stringify(data),
-      }
-    ),
-  move: (orgId: number, projectId: number, issueId: number, data: { columnId: number; status?: string; beforeIssueId?: number; afterIssueId?: number }) =>
-    apiRequest<{ id: number; title: string; description: string | null; priority: string; status: string; columnId: number; projectId: number; reporterId: number; assigneeId: number | null; orderIndex: number; createdAt: string; updatedAt: string }>(
-      `/orgs/${orgId}/projects/${projectId}/issues/${issueId}/move`,
-      {
-        method: "PATCH",
-        body: JSON.stringify(data),
+        method: "DELETE",
       }
     ),
 };
