@@ -362,7 +362,7 @@ export const issueApi = {
       priority?: string;
       status?: string;
       columnId?: number;
-      assigneeId?: number;
+      assigneeId?: number | null;
     }
   ) =>
     apiRequest<{

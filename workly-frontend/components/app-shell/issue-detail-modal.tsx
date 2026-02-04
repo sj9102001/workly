@@ -43,6 +43,7 @@ import {
   useIssue,
   useUpdateIssue,
   useMoveIssue,
+  useProjectMembers,
 } from "@/hooks/use-queries";
 import { useAuth } from "@/lib/auth";
 import { IssueComments } from "@/components/app-shell/issue-comments";
@@ -80,6 +81,10 @@ export function IssueDetailModal({
     open ? projectId : null,
     open ? issueId : null
   );
+  const { data: projectMembers = [] } = useProjectMembers(
+    open ? orgId : null,
+    open ? projectId : null
+  );
   const updateIssue = useUpdateIssue();
   const moveIssue = useMoveIssue();
 
@@ -89,6 +94,7 @@ export function IssueDetailModal({
     priority?: string;
     status?: string;
     columnId?: string;
+    assigneeId?: number | null;
   }>({});
 
   const hasChanges = Object.keys(editedIssue).length > 0;
@@ -100,6 +106,7 @@ export function IssueDetailModal({
     if (editedIssue.title !== undefined) updateData.title = editedIssue.title;
     if (editedIssue.description !== undefined) updateData.description = editedIssue.description;
     if (editedIssue.priority !== undefined) updateData.priority = editedIssue.priority;
+    if (editedIssue.assigneeId !== undefined) updateData.assigneeId = editedIssue.assigneeId;
 
     if (editedIssue.status !== undefined || editedIssue.columnId !== undefined) {
       const targetColumnId = editedIssue.columnId
@@ -129,6 +136,19 @@ export function IssueDetailModal({
   const currentPriority = editedIssue.priority ?? issue?.priority ?? "MEDIUM";
   const currentStatus = editedIssue.status ?? issue?.status ?? "TO_DO";
   const currentColumnId = editedIssue.columnId ?? (issue?.columnId ? String(issue.columnId) : "");
+  const currentAssigneeId =
+    editedIssue.assigneeId !== undefined
+      ? editedIssue.assigneeId
+      : issue?.assigneeId ?? null;
+
+  const assigneeMember =
+    currentAssigneeId != null
+      ? projectMembers.find((m) => m.userId === currentAssigneeId) ?? null
+      : null;
+  const reporterMember =
+    issue && projectMembers.length
+      ? projectMembers.find((m) => m.userId === issue.reporterId) ?? null
+      : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -274,16 +294,47 @@ export function IssueDetailModal({
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Assignee</span>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-xs">
-                            {issue.assigneeId ? "U" : "?"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">
-                          {issue.assigneeId ? `User #${issue.assigneeId}` : "Unassigned"}
-                        </span>
-                      </div>
+                    <Select
+                      value={
+                        currentAssigneeId != null
+                          ? String(currentAssigneeId)
+                          : "__unassigned__"
+                      }
+                      onValueChange={(v) =>
+                        setEditedIssue({
+                          ...editedIssue,
+                          assigneeId: v === "__unassigned__" ? null : Number(v),
+                        })
+                      }
+                    >
+                      <SelectTrigger className="w-[220px] justify-between">
+                        <div className="flex items-center gap-2 truncate">
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback className="text-xs">
+                              {assigneeMember
+                                ? assigneeMember.userName.slice(0, 2).toUpperCase()
+                                : "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm truncate">
+                            {assigneeMember
+                              ? assigneeMember.userName
+                              : "Unassigned"}
+                          </span>
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__unassigned__">Unassigned</SelectItem>
+                        {projectMembers.map((member) => (
+                          <SelectItem
+                            key={member.userId}
+                            value={String(member.userId)}
+                          >
+                            {member.userName} ({member.userEmail})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Priority</span>
@@ -305,12 +356,20 @@ export function IssueDetailModal({
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Reporter</span>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-xs">SJ</AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">User #{issue.reporterId}</span>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-6 w-6">
+                        <AvatarFallback className="text-xs">
+                          {reporterMember
+                            ? reporterMember.userName.slice(0, 2).toUpperCase()
+                            : "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm">
+                        {reporterMember
+                          ? reporterMember.userName
+                          : `User #${issue.reporterId}`}
+                      </span>
+                    </div>
                     </div>
                   </div>
                 </div>

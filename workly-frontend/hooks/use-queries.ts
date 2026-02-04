@@ -405,7 +405,14 @@ export function useUpdateIssue() {
       orgId: number;
       projectId: number;
       issueId: number;
-      data: { title?: string; description?: string; priority?: string; status?: string; columnId?: number; assigneeId?: number };
+      data: {
+        title?: string;
+        description?: string;
+        priority?: string;
+        status?: string;
+        columnId?: number;
+        assigneeId?: number | null;
+      };
     }) => issueApi.update(orgId, projectId, issueId, data),
     onSuccess: (_, { orgId, projectId, issueId }) => {
       queryClient.invalidateQueries({ queryKey: ["issue", orgId, projectId, issueId] });

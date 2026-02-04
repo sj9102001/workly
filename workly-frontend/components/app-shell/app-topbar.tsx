@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Button } from "../ui/button";
 import { NotificationsModal } from "./notifications-modal";
+import { ThemeToggle } from "./theme-toggle";
 import { useUnreadNotificationCount } from "@/hooks/use-queries";
 import { useAuth } from "@/lib/auth";
 
@@ -72,6 +73,7 @@ export function AppTopbar({ breadcrumbs = [] }: AppTopbarProps) {
               )}
             </button>
           )}
+          <ThemeToggle />
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <Input
