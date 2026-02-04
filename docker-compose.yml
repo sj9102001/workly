@@ -81,8 +81,11 @@ services:
       - "8080:8080"
       - "8081:8081"
     environment:
-      # Override Kafka bootstrap servers to use Docker service name
+      # Kafka inside the Docker network should use the internal listener
+      # (PLAINTEXT_INTERNAL://kafka:29092 as configured on the kafka service)
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      # JDBC URL for the Postgres container in this compose file
+      DB_URL: jdbc:postgresql://postgres:5432/workly
     env_file:
       - .env
     depends_on:

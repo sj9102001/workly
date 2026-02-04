@@ -21,6 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -135,6 +136,7 @@ export function IssueDetailModal({
         showCloseButton={false}
         className="!max-w-[1200px] w-full h-[94vh] max-h-[94vh] overflow-hidden flex flex-col p-0 gap-0"
       >
+        <DialogTitle className="sr-only">{`Issue #${issueId}`}</DialogTitle>
         <div className="flex items-center justify-between border-b px-6 py-3 shrink-0">
           <div className="flex items-center gap-4">
             <Button
