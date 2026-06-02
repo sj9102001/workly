@@ -1,9 +1,12 @@
 package com.sj.Workly.dto.issue;
 
+import com.sj.Workly.dto.label.LabelResponse;
 import com.sj.Workly.entity.enums.IssuePriority;
 import com.sj.Workly.entity.enums.IssueStatus;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
 
 public class IssueResponse {
 
@@ -19,6 +22,11 @@ public class IssueResponse {
 
     private Long reporterId;
     private Long assigneeId;
+
+    private Integer storyPoints;
+    private LocalDate dueDate;
+    private Long sprintId;
+    private List<LabelResponse> labels;
 
     private Instant createdAt;
     private Instant updatedAt;
@@ -49,6 +57,18 @@ public class IssueResponse {
 
     public Long getAssigneeId() { return assigneeId; }
     public void setAssigneeId(Long assigneeId) { this.assigneeId = assigneeId; }
+
+    public Integer getStoryPoints() { return storyPoints; }
+    public void setStoryPoints(Integer storyPoints) { this.storyPoints = storyPoints; }
+
+    public LocalDate getDueDate() { return dueDate; }
+    public void setDueDate(LocalDate dueDate) { this.dueDate = dueDate; }
+
+    public Long getSprintId() { return sprintId; }
+    public void setSprintId(Long sprintId) { this.sprintId = sprintId; }
+
+    public List<LabelResponse> getLabels() { return labels; }
+    public void setLabels(List<LabelResponse> labels) { this.labels = labels; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

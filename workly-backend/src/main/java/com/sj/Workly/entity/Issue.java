@@ -4,6 +4,9 @@ import com.sj.Workly.entity.enums.IssuePriority;
 import com.sj.Workly.entity.enums.IssueStatus;
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Entity
 @Table(
@@ -64,9 +67,47 @@ public class Issue {
     @Column(nullable = false)
     private Integer orderIndex = 0; // For ranking issues within a column
 
+    // Story-point estimate (Fibonacci-ish; null = unestimated)
+    @Column(name = "story_points")
+    private Integer storyPoints;
+
+    // Optional due date for the issue
+    @Column(name = "due_date")
+    private LocalDate dueDate;
+
+    // Optional sprint this issue is scheduled into
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sprint_id")
+    private Sprint sprint;
+
+    // Labels applied to this issue (project-scoped)
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "issue_labels",
+            joinColumns = @JoinColumn(name = "issue_id"),
+            inverseJoinColumns = @JoinColumn(name = "label_id"),
+            indexes = {
+                    @Index(name = "idx_issue_labels_issue", columnList = "issue_id"),
+                    @Index(name = "idx_issue_labels_label", columnList = "label_id")
+            }
+    )
+    private Set<Label> labels = new LinkedHashSet<>();
+
     // getter/setter
     public Integer getOrderIndex() { return orderIndex; }
     public void setOrderIndex(Integer orderIndex) { this.orderIndex = orderIndex; }
+
+    public Integer getStoryPoints() { return storyPoints; }
+    public void setStoryPoints(Integer storyPoints) { this.storyPoints = storyPoints; }
+
+    public LocalDate getDueDate() { return dueDate; }
+    public void setDueDate(LocalDate dueDate) { this.dueDate = dueDate; }
+
+    public Sprint getSprint() { return sprint; }
+    public void setSprint(Sprint sprint) { this.sprint = sprint; }
+
+    public Set<Label> getLabels() { return labels; }
+    public void setLabels(Set<Label> labels) { this.labels = labels; }
 
     @PrePersist
     void onCreate() {

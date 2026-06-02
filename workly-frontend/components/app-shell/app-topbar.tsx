@@ -1,9 +1,6 @@
 "use client";
 
 import { Search, ChevronRight, Bell } from "lucide-react";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import {
   Breadcrumb,
   BreadcrumbLink,
@@ -13,7 +10,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import Link from "next/link";
 import { useState } from "react";
-import { Button } from "../ui/button";
 import { NotificationsModal } from "./notifications-modal";
 import { ThemeToggle } from "./theme-toggle";
 import { useUnreadNotificationCount } from "@/hooks/use-queries";
@@ -30,10 +26,7 @@ export function AppTopbar({ breadcrumbs = [] }: AppTopbarProps) {
 
   return (
     <>
-      <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-background px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="h-6" />
-
+      <header className="border-border bg-background flex h-[52px] shrink-0 items-center gap-3 border-b px-4">
         {breadcrumbs.length > 0 && (
           <Breadcrumb className="hidden md:flex">
             <BreadcrumbList>
@@ -58,30 +51,38 @@ export function AppTopbar({ breadcrumbs = [] }: AppTopbarProps) {
         )}
 
         <div className="ml-auto flex items-center gap-2">
+          {/* ⌘K search trigger — opens the global command palette */}
+          <button
+            type="button"
+            onClick={() => {
+              const ev = new KeyboardEvent("keydown", { key: "k", metaKey: true });
+              window.dispatchEvent(ev);
+            }}
+            className="bg-card text-text-faint hover:border-border-strong flex h-9 w-56 items-center gap-2 rounded-md border px-2.5 text-[12.5px] transition-colors"
+            aria-label="Search"
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span className="flex-1 text-left">Search or jump to…</span>
+            <span className="bg-surface-3 text-text-muted border-border rounded border px-1.5 font-mono text-[10px] font-semibold">
+              ⌘K
+            </span>
+          </button>
           {isAuthenticated && (
             <button
               type="button"
               onClick={() => setNotificationsOpen(true)}
-              className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent bg-muted/50 text-muted-foreground hover:text-black hover:scale-105 hover:bg-muted hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-all cursor-pointer"
+              className="text-text-2 hover:bg-hover hover:text-foreground relative inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
               aria-label="Notifications"
             >
               <Bell className="h-4 w-4" />
               {typeof unreadCount === "number" && unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white min-w-[18px] h-[18px]">
+                <span className="bg-primary text-primary-foreground absolute -right-1 -top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
             </button>
           )}
           <ThemeToggle />
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              className="h-9 w-64 pl-9 bg-muted/50 border-transparent focus:border-border transition-colors"
-            />
-          </div>
         </div>
       </header>
 

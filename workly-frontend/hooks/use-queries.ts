@@ -10,7 +10,16 @@ import {
   inviteApi,
   notificationApi,
   commentApi,
+  labelApi,
+  sprintApi,
+  subtaskApi,
+  activityApi,
 } from "@/lib/api";
+import type {
+  CreateIssueRequest,
+  UpdateIssueRequest,
+  MoveIssueRequest,
+} from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
 // Organization hooks
@@ -379,7 +388,7 @@ export function useCreateIssue() {
     }: {
       orgId: number;
       projectId: number;
-      data: { title: string; description?: string; priority: string; status?: string; columnId: number; assigneeId?: number };
+      data: CreateIssueRequest;
     }) => issueApi.create(orgId, projectId, data),
     onSuccess: (_, { orgId, projectId }) => {
       queryClient.invalidateQueries({ queryKey: ["issues", orgId, projectId] });
@@ -405,14 +414,7 @@ export function useUpdateIssue() {
       orgId: number;
       projectId: number;
       issueId: number;
-      data: {
-        title?: string;
-        description?: string;
-        priority?: string;
-        status?: string;
-        columnId?: number;
-        assigneeId?: number | null;
-      };
+      data: UpdateIssueRequest;
     }) => issueApi.update(orgId, projectId, issueId, data),
     onSuccess: (_, { orgId, projectId, issueId }) => {
       queryClient.invalidateQueries({ queryKey: ["issue", orgId, projectId, issueId] });
@@ -438,7 +440,7 @@ export function useMoveIssue() {
       orgId: number;
       projectId: number;
       issueId: number;
-      data: { columnId: number; status?: string; beforeIssueId?: number; afterIssueId?: number };
+      data: MoveIssueRequest;
     }) => issueApi.move(orgId, projectId, issueId, data),
     onSuccess: (_, { orgId, projectId, issueId }) => {
       queryClient.invalidateQueries({ queryKey: ["issue", orgId, projectId, issueId] });
@@ -551,5 +553,147 @@ export function useMarkAllNotificationsRead() {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["notifications", "unreadCount"] });
     },
+  });
+}
+
+// Label hooks
+export function useLabels(orgId: number | null, projectId: number | null) {
+  return useQuery({
+    queryKey: ["labels", orgId, projectId],
+    queryFn: () => labelApi.list(orgId!, projectId!),
+    enabled: !!orgId && !!projectId,
+  });
+}
+
+export function useCreateLabel() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ orgId, projectId, name, color }: { orgId: number; projectId: number; name: string; color: string }) =>
+      labelApi.create(orgId, projectId, { name, color }),
+    onSuccess: (_, { orgId, projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ["labels", orgId, projectId] });
+      toast({ title: "Label created" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useDeleteLabel() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ orgId, projectId, labelId }: { orgId: number; projectId: number; labelId: number }) =>
+      labelApi.delete(orgId, projectId, labelId),
+    onSuccess: (_, { orgId, projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ["labels", orgId, projectId] });
+      queryClient.invalidateQueries({ queryKey: ["issues", orgId, projectId] });
+      toast({ title: "Label deleted" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+// Sprint hooks
+export function useSprints(orgId: number | null, projectId: number | null) {
+  return useQuery({
+    queryKey: ["sprints", orgId, projectId],
+    queryFn: () => sprintApi.list(orgId!, projectId!),
+    enabled: !!orgId && !!projectId,
+  });
+}
+
+export function useActiveSprint(orgId: number | null, projectId: number | null) {
+  return useQuery({
+    queryKey: ["sprints", orgId, projectId, "active"],
+    queryFn: () => sprintApi.active(orgId!, projectId!),
+    enabled: !!orgId && !!projectId,
+  });
+}
+
+export function useCreateSprint() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ orgId, projectId, data }: { orgId: number; projectId: number; data: { name: string; goal?: string; startDate?: string; endDate?: string } }) =>
+      sprintApi.create(orgId, projectId, data),
+    onSuccess: (_, { orgId, projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ["sprints", orgId, projectId] });
+      toast({ title: "Sprint created" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useUpdateSprint() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ orgId, projectId, sprintId, data }: { orgId: number; projectId: number; sprintId: number; data: { name?: string; goal?: string; status?: string; startDate?: string; endDate?: string } }) =>
+      sprintApi.update(orgId, projectId, sprintId, data),
+    onSuccess: (_, { orgId, projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ["sprints", orgId, projectId] });
+      toast({ title: "Sprint updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+// Subtask hooks
+export function useSubtasks(orgId: number | null, projectId: number | null, issueId: number | null) {
+  return useQuery({
+    queryKey: ["subtasks", orgId, projectId, issueId],
+    queryFn: () => subtaskApi.list(orgId!, projectId!, issueId!),
+    enabled: !!orgId && !!projectId && !!issueId,
+  });
+}
+
+export function useAddSubtask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, projectId, issueId, title }: { orgId: number; projectId: number; issueId: number; title: string }) =>
+      subtaskApi.add(orgId, projectId, issueId, title),
+    onSuccess: (_, { orgId, projectId, issueId }) => {
+      queryClient.invalidateQueries({ queryKey: ["subtasks", orgId, projectId, issueId] });
+    },
+  });
+}
+
+export function useUpdateSubtask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, projectId, issueId, subtaskId, data }: { orgId: number; projectId: number; issueId: number; subtaskId: number; data: { title?: string; done?: boolean } }) =>
+      subtaskApi.update(orgId, projectId, issueId, subtaskId, data),
+    onSuccess: (_, { orgId, projectId, issueId }) => {
+      queryClient.invalidateQueries({ queryKey: ["subtasks", orgId, projectId, issueId] });
+    },
+  });
+}
+
+export function useDeleteSubtask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, projectId, issueId, subtaskId }: { orgId: number; projectId: number; issueId: number; subtaskId: number }) =>
+      subtaskApi.delete(orgId, projectId, issueId, subtaskId),
+    onSuccess: (_, { orgId, projectId, issueId }) => {
+      queryClient.invalidateQueries({ queryKey: ["subtasks", orgId, projectId, issueId] });
+    },
+  });
+}
+
+// Activity feed hook
+export function useActivity(orgId: number | null, projectId: number | null, limit = 20) {
+  return useQuery({
+    queryKey: ["activity", orgId, projectId, limit],
+    queryFn: () => activityApi.list(orgId!, projectId!, limit),
+    enabled: !!orgId && !!projectId,
   });
 }

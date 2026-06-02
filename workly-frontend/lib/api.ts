@@ -1,4 +1,38 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+// Build-time fallback. Used until the runtime /config value is fetched, and on
+// the server during SSR. For "deploy anywhere without rebuilding", the runtime
+// value from /config (backed by the server-side API_BASE_URL env var) wins.
+const BUILD_TIME_API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+
+let resolvedApiBaseUrl: string = BUILD_TIME_API_BASE_URL;
+let apiBaseUrlPromise: Promise<string> | null = null;
+
+/**
+ * Resolves the backend base URL at runtime by querying the app's own /config
+ * route once, then caching it. Falls back to the build-time value if /config
+ * is unavailable. Safe to call repeatedly — only the first call hits the route.
+ */
+async function resolveApiBaseUrl(): Promise<string> {
+  if (typeof window === "undefined") return BUILD_TIME_API_BASE_URL;
+  if (apiBaseUrlPromise) return apiBaseUrlPromise;
+
+  apiBaseUrlPromise = (async () => {
+    try {
+      const res = await fetch("/config", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.apiBaseUrl) {
+          resolvedApiBaseUrl = data.apiBaseUrl;
+        }
+      }
+    } catch {
+      // Keep the build-time fallback if /config can't be reached.
+    }
+    return resolvedApiBaseUrl;
+  })();
+
+  return apiBaseUrlPromise;
+}
 
 let accessToken: string | null = null;
 let onUnauthorized: (() => void) | null = null;
@@ -26,7 +60,8 @@ export function setOnUnauthorized(callback: () => void) {
 
 async function refreshToken(): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    const baseUrl = await resolveApiBaseUrl();
+    const response = await fetch(`${baseUrl}/auth/refresh`, {
       method: "POST",
       credentials: "include",
     });
@@ -75,7 +110,8 @@ export async function apiRequest<T>(
     }
   }
 
-  let response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const baseUrl = await resolveApiBaseUrl();
+  let response = await fetch(`${baseUrl}${endpoint}`, {
     ...fetchOptions,
     headers,
     credentials: "include",
@@ -89,7 +125,7 @@ export async function apiRequest<T>(
       if (newToken) {
         (headers as Record<string, string>)["Authorization"] = `Bearer ${newToken}`;
       }
-      response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      response = await fetch(`${baseUrl}${endpoint}`, {
         ...fetchOptions,
         headers,
         credentials: "include",
@@ -287,124 +323,134 @@ export const columnApi = {
 };
 
 // Issue API
+import type {
+  IssueResponse,
+  CreateIssueRequest,
+  UpdateIssueRequest,
+  MoveIssueRequest,
+  LabelResponse,
+  SprintResponse,
+  SubtaskResponse,
+  ActivityResponse,
+} from "@/lib/types";
+
 export const issueApi = {
   list: (orgId: number, projectId: number, params?: { columnId?: number; status?: string }) => {
     const searchParams = new URLSearchParams();
     if (params?.columnId) searchParams.set("columnId", String(params.columnId));
     if (params?.status) searchParams.set("status", params.status);
     const query = searchParams.toString();
-    return apiRequest<{
-      id: number;
-      title: string;
-      description: string | null;
-      priority: string;
-      status: string;
-      columnId: number;
-      projectId: number;
-      reporterId: number;
-      assigneeId: number | null;
-      orderIndex: number;
-      createdAt: string;
-      updatedAt: string;
-    }[]>(`/orgs/${orgId}/projects/${projectId}/issues${query ? `?${query}` : ""}`);
+    return apiRequest<IssueResponse[]>(
+      `/orgs/${orgId}/projects/${projectId}/issues${query ? `?${query}` : ""}`
+    );
   },
   get: (orgId: number, projectId: number, issueId: number) =>
-    apiRequest<{
-      id: number;
-      title: string;
-      description: string | null;
-      priority: string;
-      status: string;
-      columnId: number;
-      projectId: number;
-      reporterId: number;
-      assigneeId: number | null;
-      orderIndex: number;
-      createdAt: string;
-      updatedAt: string;
-    }>(`/orgs/${orgId}/projects/${projectId}/issues/${issueId}`),
+    apiRequest<IssueResponse>(`/orgs/${orgId}/projects/${projectId}/issues/${issueId}`),
+  create: (orgId: number, projectId: number, data: CreateIssueRequest) =>
+    apiRequest<IssueResponse>(`/orgs/${orgId}/projects/${projectId}/issues`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (orgId: number, projectId: number, issueId: number, data: UpdateIssueRequest) =>
+    apiRequest<IssueResponse>(`/orgs/${orgId}/projects/${projectId}/issues/${issueId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  move: (orgId: number, projectId: number, issueId: number, data: MoveIssueRequest) =>
+    apiRequest<IssueResponse>(`/orgs/${orgId}/projects/${projectId}/issues/${issueId}/move`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+};
+
+// Label API
+export const labelApi = {
+  list: (orgId: number, projectId: number) =>
+    apiRequest<LabelResponse[]>(`/orgs/${orgId}/projects/${projectId}/labels`),
+  create: (orgId: number, projectId: number, data: { name: string; color: string }) =>
+    apiRequest<LabelResponse>(`/orgs/${orgId}/projects/${projectId}/labels`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (orgId: number, projectId: number, labelId: number, data: { name?: string; color?: string }) =>
+    apiRequest<LabelResponse>(`/orgs/${orgId}/projects/${projectId}/labels/${labelId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  delete: (orgId: number, projectId: number, labelId: number) =>
+    apiRequest<void>(`/orgs/${orgId}/projects/${projectId}/labels/${labelId}`, {
+      method: "DELETE",
+    }),
+};
+
+// Sprint API
+export const sprintApi = {
+  list: (orgId: number, projectId: number) =>
+    apiRequest<SprintResponse[]>(`/orgs/${orgId}/projects/${projectId}/sprints`),
+  active: (orgId: number, projectId: number) =>
+    apiRequest<SprintResponse | null>(`/orgs/${orgId}/projects/${projectId}/sprints/active`),
+  get: (orgId: number, projectId: number, sprintId: number) =>
+    apiRequest<SprintResponse>(`/orgs/${orgId}/projects/${projectId}/sprints/${sprintId}`),
   create: (
     orgId: number,
     projectId: number,
-    data: {
-      title: string;
-      description?: string;
-      priority: string;
-      status?: string;
-      columnId: number;
-      assigneeId?: number;
-    }
+    data: { name: string; goal?: string; startDate?: string; endDate?: string }
   ) =>
-    apiRequest<{
-      id: number;
-      title: string;
-      description: string | null;
-      priority: string;
-      status: string;
-      columnId: number;
-      projectId: number;
-      reporterId: number;
-      assigneeId: number | null;
-      orderIndex: number;
-      createdAt: string;
-      updatedAt: string;
-    }>(`/orgs/${orgId}/projects/${projectId}/issues`, {
+    apiRequest<SprintResponse>(`/orgs/${orgId}/projects/${projectId}/sprints`, {
       method: "POST",
       body: JSON.stringify(data),
     }),
   update: (
     orgId: number,
     projectId: number,
-    issueId: number,
-    data: {
-      title?: string;
-      description?: string;
-      priority?: string;
-      status?: string;
-      columnId?: number;
-      assigneeId?: number | null;
-    }
+    sprintId: number,
+    data: { name?: string; goal?: string; status?: string; startDate?: string; endDate?: string }
   ) =>
-    apiRequest<{
-      id: number;
-      title: string;
-      description: string | null;
-      priority: string;
-      status: string;
-      columnId: number;
-      projectId: number;
-      reporterId: number;
-      assigneeId: number | null;
-      orderIndex: number;
-      createdAt: string;
-      updatedAt: string;
-    }>(`/orgs/${orgId}/projects/${projectId}/issues/${issueId}`, {
+    apiRequest<SprintResponse>(`/orgs/${orgId}/projects/${projectId}/sprints/${sprintId}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
-  move: (
+  delete: (orgId: number, projectId: number, sprintId: number) =>
+    apiRequest<void>(`/orgs/${orgId}/projects/${projectId}/sprints/${sprintId}`, {
+      method: "DELETE",
+    }),
+};
+
+// Subtask API
+export const subtaskApi = {
+  list: (orgId: number, projectId: number, issueId: number) =>
+    apiRequest<SubtaskResponse[]>(
+      `/orgs/${orgId}/projects/${projectId}/issues/${issueId}/subtasks`
+    ),
+  add: (orgId: number, projectId: number, issueId: number, title: string) =>
+    apiRequest<SubtaskResponse>(
+      `/orgs/${orgId}/projects/${projectId}/issues/${issueId}/subtasks`,
+      { method: "POST", body: JSON.stringify({ title }) }
+    ),
+  update: (
     orgId: number,
     projectId: number,
     issueId: number,
-    data: { columnId: number; status?: string; beforeIssueId?: number; afterIssueId?: number }
+    subtaskId: number,
+    data: { title?: string; done?: boolean }
   ) =>
-    apiRequest<{
-      id: number;
-      title: string;
-      description: string | null;
-      priority: string;
-      status: string;
-      columnId: number;
-      projectId: number;
-      reporterId: number;
-      assigneeId: number | null;
-      orderIndex: number;
-      createdAt: string;
-      updatedAt: string;
-    }>(`/orgs/${orgId}/projects/${projectId}/issues/${issueId}/move`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }),
+    apiRequest<SubtaskResponse>(
+      `/orgs/${orgId}/projects/${projectId}/issues/${issueId}/subtasks/${subtaskId}`,
+      { method: "PUT", body: JSON.stringify(data) }
+    ),
+  delete: (orgId: number, projectId: number, issueId: number, subtaskId: number) =>
+    apiRequest<void>(
+      `/orgs/${orgId}/projects/${projectId}/issues/${issueId}/subtasks/${subtaskId}`,
+      { method: "DELETE" }
+    ),
+};
+
+// Activity feed API
+export const activityApi = {
+  list: (orgId: number, projectId: number, limit = 20) =>
+    apiRequest<ActivityResponse[]>(
+      `/orgs/${orgId}/projects/${projectId}/activity?limit=${limit}`
+    ),
 };
 
 // Issue comments API

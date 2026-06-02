@@ -144,6 +144,65 @@ export interface UpdateColumnRequest {
   orderIndex?: number;
 }
 
+// Label types
+export interface LabelResponse {
+  id: number;
+  projectId: number;
+  name: string;
+  color: string;
+  createdAt: string;
+}
+
+// Sprint types
+export type SprintStatus = "PLANNED" | "ACTIVE" | "COMPLETED";
+
+export interface SprintResponse {
+  id: number;
+  projectId: number;
+  name: string;
+  goal: string | null;
+  status: SprintStatus;
+  startDate: string | null;
+  endDate: string | null;
+  issueCount: number;
+  pointsTotal: number;
+  pointsDone: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Subtask types
+export interface SubtaskResponse {
+  id: number;
+  issueId: number;
+  title: string;
+  done: boolean;
+  orderIndex: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Activity feed types
+export type ActivityType =
+  | "ISSUE_CREATED"
+  | "ISSUE_MOVED"
+  | "ISSUE_ASSIGNED"
+  | "ISSUE_COMMENTED"
+  | "ISSUE_COMPLETED"
+  | "ISSUE_REOPENED";
+
+export interface ActivityResponse {
+  id: number;
+  projectId: number;
+  type: ActivityType;
+  actorId: number;
+  actorName: string;
+  issueId: number | null;
+  targetTitle: string | null;
+  meta: string | null;
+  createdAt: string;
+}
+
 // Issue types
 export type Priority = "HIGHEST" | "HIGH" | "MEDIUM" | "LOW" | "LOWEST";
 export type IssueStatus = "TO_DO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE";
@@ -159,6 +218,10 @@ export interface IssueResponse {
   reporterId: number;
   assigneeId: number | null;
   orderIndex: number;
+  storyPoints: number | null;
+  dueDate: string | null;
+  sprintId: number | null;
+  labels: LabelResponse[];
   createdAt: string;
   updatedAt: string;
 }
@@ -170,6 +233,10 @@ export interface CreateIssueRequest {
   status?: IssueStatus;
   columnId: number;
   assigneeId?: number;
+  storyPoints?: number;
+  dueDate?: string;
+  sprintId?: number;
+  labelIds?: number[];
 }
 
 export interface UpdateIssueRequest {
@@ -179,6 +246,13 @@ export interface UpdateIssueRequest {
   status?: IssueStatus;
   columnId?: number;
   assigneeId?: number;
+  storyPoints?: number;
+  clearStoryPoints?: boolean;
+  dueDate?: string;
+  clearDueDate?: boolean;
+  sprintId?: number;
+  clearSprint?: boolean;
+  labelIds?: number[];
 }
 
 export interface MoveIssueRequest {

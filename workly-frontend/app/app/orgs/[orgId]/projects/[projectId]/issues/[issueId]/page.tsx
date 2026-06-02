@@ -48,6 +48,7 @@ import {
   useUpdateIssue,
   useMoveIssue,
 } from "@/hooks/use-queries";
+import type { IssueStatus, UpdateIssueRequest } from "@/lib/types";
 
 const priorityColors: Record<string, string> = {
   HIGHEST: "bg-red-500 text-white",
@@ -111,7 +112,7 @@ export default function IssueDetailPage({
         projectId: projectIdNum,
         issueId: issueIdNum,
         data: {
-          status: editedIssue.status,
+          status: editedIssue.status as IssueStatus | undefined,
           columnId: targetColumnId!,
         },
       });
@@ -122,7 +123,7 @@ export default function IssueDetailPage({
         orgId: orgIdNum,
         projectId: projectIdNum,
         issueId: issueIdNum,
-        data: updateData as { title?: string; description?: string; priority?: string },
+        data: updateData as UpdateIssueRequest,
       });
     }
 

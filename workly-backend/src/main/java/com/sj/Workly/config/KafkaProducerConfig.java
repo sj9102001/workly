@@ -22,12 +22,21 @@ public class KafkaProducerConfig {
     @Value("${app.kafka.producer.client-id:workly-backend}")
     private String clientId;
 
+    private final KafkaSecurityProps securityProps;
+
+    public KafkaProducerConfig(KafkaSecurityProps securityProps) {
+        this.securityProps = securityProps;
+    }
+
     @Bean
     public ProducerFactory<String, String> producerFactory() {
         Map<String, Object> props = new HashMap<>();
 
         // Required
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+
+        // Optional SASL/SSL for managed/cloud brokers (no-op for local PLAINTEXT)
+        securityProps.apply(props);
 
         // Serialize key/value as String
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);

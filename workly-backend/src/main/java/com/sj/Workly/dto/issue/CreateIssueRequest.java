@@ -4,7 +4,11 @@ import com.sj.Workly.entity.enums.IssuePriority;
 import com.sj.Workly.entity.enums.IssueStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
+
+import java.time.LocalDate;
+import java.util.List;
 
 public class CreateIssueRequest {
 
@@ -20,6 +24,12 @@ public class CreateIssueRequest {
     @NotNull
     private Long columnId;     // required - issue must be in a column
     private Long assigneeId;  // optional
+
+    @PositiveOrZero
+    private Integer storyPoints;   // optional estimate
+    private LocalDate dueDate;     // optional
+    private Long sprintId;         // optional
+    private List<Long> labelIds;   // optional
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
@@ -38,4 +48,16 @@ public class CreateIssueRequest {
 
     public Long getAssigneeId() { return assigneeId; }
     public void setAssigneeId(Long assigneeId) { this.assigneeId = assigneeId; }
+
+    public Integer getStoryPoints() { return storyPoints; }
+    public void setStoryPoints(Integer storyPoints) { this.storyPoints = storyPoints; }
+
+    public LocalDate getDueDate() { return dueDate; }
+    public void setDueDate(LocalDate dueDate) { this.dueDate = dueDate; }
+
+    public Long getSprintId() { return sprintId; }
+    public void setSprintId(Long sprintId) { this.sprintId = sprintId; }
+
+    public List<Long> getLabelIds() { return labelIds; }
+    public void setLabelIds(List<Long> labelIds) { this.labelIds = labelIds; }
 }

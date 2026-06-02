@@ -2,21 +2,12 @@
 
 import { use, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, ArrowUpDown } from "lucide-react";
+import { Plus } from "lucide-react";
 import { AppTopbar } from "@/components/app-shell/app-topbar";
-import { IssueDetailModal } from "@/components/app-shell/issue-detail-modal";
+import { IssueDetailPanel } from "@/components/app-shell/issue-detail-modal";
 import { NoIssues } from "@/components/app-shell/empty-states";
 import { TableSkeleton } from "@/components/app-shell/skeletons";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -41,22 +32,15 @@ import {
   useColumns,
   useIssues,
   useCreateIssue,
+  useProjectMembers,
 } from "@/hooks/use-queries";
-
-const priorityColors: Record<string, string> = {
-  HIGHEST: "bg-red-500 text-white",
-  HIGH: "bg-orange-500 text-white",
-  MEDIUM: "bg-yellow-500 text-white",
-  LOW: "bg-blue-500 text-white",
-  LOWEST: "bg-gray-400 text-white",
-};
-
-const statusColors: Record<string, string> = {
-  TO_DO: "bg-gray-100 text-gray-800",
-  IN_PROGRESS: "bg-blue-100 text-blue-800",
-  IN_REVIEW: "bg-purple-100 text-purple-800",
-  DONE: "bg-green-100 text-green-800",
-};
+import type { Priority, IssueStatus } from "@/lib/types";
+import {
+  PriorityGlyph,
+  LabelChip,
+  WorklyAvatar,
+  STATUS_META,
+} from "@/components/workly/primitives";
 
 function IssuesPageContent({ orgId, projectId }: { orgId: string; projectId: string }) {
   const orgIdNum = Number(orgId);
@@ -70,11 +54,15 @@ function IssuesPageContent({ orgId, projectId }: { orgId: string; projectId: str
   const { data: org } = useOrganization(orgIdNum);
   const { data: project } = useProject(orgIdNum, projectIdNum);
   const { data: columns } = useColumns(orgIdNum, projectIdNum);
+  const { data: projectMembers = [] } = useProjectMembers(orgIdNum, projectIdNum);
   const { data: issues, isLoading } = useIssues(orgIdNum, projectIdNum, {
     columnId: columnIdParam ? Number(columnIdParam) : undefined,
     status: statusParam || undefined,
   });
   const createIssue = useCreateIssue();
+
+  const memberName = (userId: number | null) =>
+    userId != null ? projectMembers.find((m) => m.userId === userId)?.userName ?? null : null;
 
   const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -94,8 +82,8 @@ function IssuesPageContent({ orgId, projectId }: { orgId: string; projectId: str
       data: {
         title: newIssue.title,
         description: newIssue.description || undefined,
-        priority: newIssue.priority,
-        status: newIssue.status,
+        priority: newIssue.priority as Priority,
+        status: newIssue.status as IssueStatus,
         columnId: Number(newIssue.columnId),
       },
     });
@@ -125,103 +113,90 @@ function IssuesPageContent({ orgId, projectId }: { orgId: string; projectId: str
         ]}
       />
 
-      <main className="flex-1 overflow-auto p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Issues</h1>
-            <p className="text-sm text-muted-foreground">All issues in this project</p>
+      <main className="view-enter flex-1 overflow-auto px-6 pb-16 pt-5">
+        <div className="mx-auto max-w-[1000px]">
+          <div className="mb-5 flex items-end justify-between gap-4">
+            <div>
+              <h1 className="font-display text-[22px] font-bold leading-none tracking-tight">Issues</h1>
+              <p className="text-text-muted mt-1.5 text-[12.5px]">
+                {issues?.length ?? 0} issues in {project?.name ?? "this project"}
+              </p>
+            </div>
+            <Button onClick={() => setIsCreateOpen(true)}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" /> Create Issue
+            </Button>
           </div>
-          <Button onClick={() => setIsCreateOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Issue
-          </Button>
-        </div>
 
-        {/* Filters */}
-        <div className="mb-4 flex gap-3">
-          <Select value={columnIdParam || "all"} onValueChange={(v) => updateFilter("columnId", v)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Columns" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Columns</SelectItem>
-              {columns?.map((column) => (
-                <SelectItem key={column.id} value={String(column.id)}>
-                  {column.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={statusParam || "all"} onValueChange={(v) => updateFilter("status", v)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="TO_DO">To Do</SelectItem>
-              <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-              <SelectItem value="IN_REVIEW">In Review</SelectItem>
-              <SelectItem value="DONE">Done</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {isLoading ? (
-          <TableSkeleton rows={10} />
-        ) : issues?.length === 0 ? (
-          <NoIssues onCreateIssue={() => setIsCreateOpen(true)} />
-        ) : (
-          <div className="rounded-md border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[50px]">ID</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Reporter</TableHead>
-                  <TableHead>Assignee</TableHead>
-                  <TableHead>
-                    <Button variant="ghost" size="sm" className="h-8 p-0">
-                      Updated
-                      <ArrowUpDown className="ml-2 h-3 w-3" />
-                    </Button>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {issues?.map((issue) => (
-                  <TableRow
-                    key={issue.id}
-                    className="cursor-pointer"
-                    onClick={() => setSelectedIssueId(issue.id)}
-                  >
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      #{issue.id}
-                    </TableCell>
-                    <TableCell className="font-medium">{issue.title}</TableCell>
-                    <TableCell>
-                      <Badge className={priorityColors[issue.priority]}>{issue.priority}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={statusColors[issue.status]}>
-                        {issue.status.replace("_", " ")}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">User #{issue.reporterId}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {issue.assigneeId ? `User #${issue.assigneeId}` : "-"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(issue.updatedAt).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
+          {/* Filters */}
+          <div className="mb-4 flex gap-3">
+            <Select value={columnIdParam || "all"} onValueChange={(v) => updateFilter("columnId", v)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Columns" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Columns</SelectItem>
+                {columns?.map((column) => (
+                  <SelectItem key={column.id} value={String(column.id)}>
+                    {column.name}
+                  </SelectItem>
                 ))}
-              </TableBody>
-            </Table>
+              </SelectContent>
+            </Select>
+
+            <Select value={statusParam || "all"} onValueChange={(v) => updateFilter("status", v)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="TO_DO">To Do</SelectItem>
+                <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                <SelectItem value="IN_REVIEW">In Review</SelectItem>
+                <SelectItem value="DONE">Done</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        )}
+
+          {isLoading ? (
+            <TableSkeleton rows={10} />
+          ) : issues?.length === 0 ? (
+            <NoIssues onCreateIssue={() => setIsCreateOpen(true)} />
+          ) : (
+            <div className="bg-card overflow-hidden rounded-xl border">
+              {issues?.map((issue, idx) => (
+                <button
+                  key={issue.id}
+                  onClick={() => setSelectedIssueId(issue.id)}
+                  className={`hover:bg-hover flex h-11 w-full items-center gap-3 px-3 text-left transition-colors ${
+                    idx ? "border-border-soft border-t" : ""
+                  }`}
+                >
+                  <PriorityGlyph priority={issue.priority} size={13} />
+                  <span className="text-text-faint w-14 shrink-0 font-mono text-[11px]">WRK-{issue.id}</span>
+                  <span className="flex-1 truncate text-[13px] font-medium">{issue.title}</span>
+                  <div className="hidden gap-1 md:flex">
+                    {issue.labels.slice(0, 2).map((l) => (
+                      <LabelChip key={l.id} label={l} />
+                    ))}
+                  </div>
+                  {issue.storyPoints != null && (
+                    <span className="bg-surface-3 text-text-muted rounded-[5px] px-1.5 font-mono text-[11px] font-semibold">
+                      {issue.storyPoints}
+                    </span>
+                  )}
+                  <span
+                    className="hidden items-center gap-1.5 text-[11.5px] font-medium sm:inline-flex"
+                    style={{ color: STATUS_META[issue.status].color }}
+                  >
+                    <span className="h-2 w-2 rounded-[3px]" style={{ background: STATUS_META[issue.status].color }} />
+                    {STATUS_META[issue.status].label}
+                  </span>
+                  <WorklyAvatar name={memberName(issue.assigneeId)} size={20} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </main>
 
       {/* Create Issue Dialog */}
@@ -319,7 +294,7 @@ function IssuesPageContent({ orgId, projectId }: { orgId: string; projectId: str
       </Dialog>
 
       {selectedIssueId !== null && (
-        <IssueDetailModal
+        <IssueDetailPanel
           open={selectedIssueId !== null}
           onOpenChange={(open) => !open && setSelectedIssueId(null)}
           orgId={orgIdNum}

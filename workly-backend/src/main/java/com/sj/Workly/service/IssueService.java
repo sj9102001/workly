@@ -1,22 +1,30 @@
 package com.sj.Workly.service;
 
 import com.sj.Workly.dto.issue.*;
+import com.sj.Workly.dto.label.LabelResponse;
 import com.sj.Workly.entity.BoardColumn;
 import com.sj.Workly.entity.Issue;
+import com.sj.Workly.entity.Label;
 import com.sj.Workly.entity.Project;
+import com.sj.Workly.entity.Sprint;
 import com.sj.Workly.entity.User;
+import com.sj.Workly.entity.enums.ActivityType;
 import com.sj.Workly.entity.enums.IssueStatus;
 import com.sj.Workly.exception.NotFoundException;
 import com.sj.Workly.exception.UnauthorizedException;
 import com.sj.Workly.repository.ColumnRepository;
 import com.sj.Workly.repository.IssueRepository;
+import com.sj.Workly.repository.LabelRepository;
 import com.sj.Workly.repository.ProjectMemberRepository;
 import com.sj.Workly.repository.ProjectRepository;
+import com.sj.Workly.repository.SprintRepository;
 import com.sj.Workly.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class IssueService {
@@ -26,17 +34,26 @@ public class IssueService {
     private final ProjectMemberRepository projectMemberRepo;
     private final ColumnRepository columnRepo;
     private final UserRepository userRepo;
+    private final LabelRepository labelRepo;
+    private final SprintRepository sprintRepo;
+    private final ActivityService activityService;
 
     public IssueService(IssueRepository issueRepo,
                         ProjectRepository projectRepo,
                         ProjectMemberRepository projectMemberRepo,
                         ColumnRepository columnRepo,
-                        UserRepository userRepo) {
+                        UserRepository userRepo,
+                        LabelRepository labelRepo,
+                        SprintRepository sprintRepo,
+                        ActivityService activityService) {
         this.issueRepo = issueRepo;
         this.projectRepo = projectRepo;
         this.projectMemberRepo = projectMemberRepo;
         this.columnRepo = columnRepo;
         this.userRepo = userRepo;
+        this.labelRepo = labelRepo;
+        this.sprintRepo = sprintRepo;
+        this.activityService = activityService;
     }
 
     @Transactional
@@ -67,6 +84,16 @@ public class IssueService {
         issue.setStatus(req.getStatus());
         issue.setReporter(actor);
         issue.setOrderIndex(maxOrder + 1);
+        issue.setStoryPoints(req.getStoryPoints());
+        issue.setDueDate(req.getDueDate());
+
+        if (req.getSprintId() != null) {
+            issue.setSprint(requireSprint(projectId, req.getSprintId()));
+        }
+
+        if (req.getLabelIds() != null) {
+            issue.setLabels(resolveLabels(projectId, req.getLabelIds()));
+        }
 
         if (req.getAssigneeId() != null) {
             requireProjectMember(req.getAssigneeId(), projectId);
@@ -77,6 +104,7 @@ public class IssueService {
         }
 
         issue = issueRepo.save(issue);
+        activityService.record(project, actor, ActivityType.ISSUE_CREATED, issue, null);
         return toResponse(issue);
     }
 
@@ -146,15 +174,48 @@ public class IssueService {
             issue.setColumn(column);
         }
 
+        boolean assigneeChanged = false;
         if (req.getAssigneeId() != null) {
             requireProjectMember(req.getAssigneeId(), projectId);
 
             User assignee = userRepo.findById(req.getAssigneeId())
                     .orElseThrow(() -> new NotFoundException("Assignee not found"));
+            assigneeChanged = issue.getAssignee() == null
+                    || !issue.getAssignee().getId().equals(assignee.getId());
             issue.setAssignee(assignee);
         }
 
+        // story points
+        if (req.isClearStoryPoints()) {
+            issue.setStoryPoints(null);
+        } else if (req.getStoryPoints() != null) {
+            issue.setStoryPoints(req.getStoryPoints());
+        }
+
+        // due date
+        if (req.isClearDueDate()) {
+            issue.setDueDate(null);
+        } else if (req.getDueDate() != null) {
+            issue.setDueDate(req.getDueDate());
+        }
+
+        // sprint
+        if (req.isClearSprint()) {
+            issue.setSprint(null);
+        } else if (req.getSprintId() != null) {
+            issue.setSprint(requireSprint(projectId, req.getSprintId()));
+        }
+
+        // labels (replace whole set when provided)
+        if (req.getLabelIds() != null) {
+            issue.setLabels(resolveLabels(projectId, req.getLabelIds()));
+        }
+
         issue = issueRepo.save(issue);
+        if (assigneeChanged) {
+            activityService.record(issue.getProject(), actor, ActivityType.ISSUE_ASSIGNED, issue,
+                    issue.getAssignee() != null ? "to " + issue.getAssignee().getName() : null);
+        }
         return toResponse(issue);
     }
 
@@ -182,6 +243,10 @@ public class IssueService {
             throw new NotFoundException("Column does not belong to this project");
         }
 
+        String fromColumnName = issue.getColumn().getName();
+        IssueStatus previousStatus = issue.getStatus();
+        boolean columnChanged = !issue.getColumn().getId().equals(targetColumn.getId());
+
         // 1) status (optional; e.g. frontend can send status matching target column)
         if (req.getStatus() != null) {
             issue.setStatus(req.getStatus());
@@ -195,6 +260,19 @@ public class IssueService {
         issue.setOrderIndex(newOrderIndex);
 
         issue = issueRepo.save(issue);
+
+        // Record activity when the issue actually changed column.
+        if (columnChanged) {
+            ActivityType type = ActivityType.ISSUE_MOVED;
+            if (issue.getStatus() == IssueStatus.DONE && previousStatus != IssueStatus.DONE) {
+                type = ActivityType.ISSUE_COMPLETED;
+            } else if (previousStatus == IssueStatus.DONE && issue.getStatus() != IssueStatus.DONE) {
+                type = ActivityType.ISSUE_REOPENED;
+            }
+            String meta = fromColumnName + " → " + targetColumn.getName();
+            activityService.record(issue.getProject(), actor, type, issue, meta);
+        }
+
         return toResponse(issue);
     }
 
@@ -252,6 +330,22 @@ public class IssueService {
         }
     }
 
+    private Sprint requireSprint(Long projectId, Long sprintId) {
+        return sprintRepo.findByIdAndProjectId(sprintId, projectId)
+                .orElseThrow(() -> new NotFoundException("Sprint not found"));
+    }
+
+    /** Resolve a list of label ids to project-scoped Label entities (skipping unknowns is not allowed). */
+    private Set<Label> resolveLabels(Long projectId, List<Long> labelIds) {
+        Set<Label> labels = new LinkedHashSet<>();
+        for (Long id : labelIds) {
+            Label label = labelRepo.findByIdAndProjectId(id, projectId)
+                    .orElseThrow(() -> new NotFoundException("Label not found: " + id));
+            labels.add(label);
+        }
+        return labels;
+    }
+
     private IssueResponse toResponse(Issue i) {
         IssueResponse r = new IssueResponse();
         r.setId(i.getId());
@@ -266,8 +360,23 @@ public class IssueService {
         r.setReporterId(i.getReporter().getId());
         r.setAssigneeId(i.getAssignee() == null ? null : i.getAssignee().getId());
 
+        r.setStoryPoints(i.getStoryPoints());
+        r.setDueDate(i.getDueDate());
+        r.setSprintId(i.getSprint() == null ? null : i.getSprint().getId());
+        r.setLabels(i.getLabels().stream().map(this::toLabelResponse).toList());
+
         r.setCreatedAt(i.getCreatedAt());
         r.setUpdatedAt(i.getUpdatedAt());
+        return r;
+    }
+
+    private LabelResponse toLabelResponse(Label l) {
+        LabelResponse r = new LabelResponse();
+        r.setId(l.getId());
+        r.setProjectId(l.getProject().getId());
+        r.setName(l.getName());
+        r.setColor(l.getColor());
+        r.setCreatedAt(l.getCreatedAt());
         return r;
     }
 }

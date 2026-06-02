@@ -6,6 +6,7 @@ import com.sj.Workly.dto.comment.CreateCommentRequest;
 import com.sj.Workly.entity.Comment;
 import com.sj.Workly.entity.Issue;
 import com.sj.Workly.entity.User;
+import com.sj.Workly.entity.enums.ActivityType;
 import com.sj.Workly.entity.enums.AggregateType;
 import com.sj.Workly.entity.enums.OrgEventType;
 import com.sj.Workly.exception.NotFoundException;
@@ -29,17 +30,20 @@ public class CommentService {
     private final ProjectMemberRepository projectMemberRepo;
     private final OutboxWriter outboxWriter;
     private final ObjectMapper objectMapper;
+    private final ActivityService activityService;
 
     public CommentService(CommentRepository commentRepo,
                           IssueRepository issueRepo,
                           ProjectMemberRepository projectMemberRepo,
                           OutboxWriter outboxWriter,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          ActivityService activityService) {
         this.commentRepo = commentRepo;
         this.issueRepo = issueRepo;
         this.projectMemberRepo = projectMemberRepo;
         this.outboxWriter = outboxWriter;
         this.objectMapper = objectMapper;
+        this.activityService = activityService;
     }
 
     @Transactional(readOnly = true)
@@ -85,6 +89,7 @@ public class CommentService {
         comment = commentRepo.save(comment);
 
         publishCommentAddedEvent(comment, issue);
+        activityService.record(issue.getProject(), actor, ActivityType.ISSUE_COMMENTED, issue, null);
 
         return toResponse(comment);
     }

@@ -4,17 +4,8 @@ import { use } from "react";
 import { AppTopbar } from "@/components/app-shell/app-topbar";
 import { NoMembers } from "@/components/app-shell/empty-states";
 import { TableSkeleton } from "@/components/app-shell/skeletons";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useOrganization, useOrgMembers } from "@/hooks/use-queries";
+import { WorklyAvatar } from "@/components/workly/primitives";
 
 export default function OrgMembersPage({ params }: { params: Promise<{ orgId: string }> }) {
   const { orgId } = use(params);
@@ -22,17 +13,6 @@ export default function OrgMembersPage({ params }: { params: Promise<{ orgId: st
 
   const { data: org } = useOrganization(orgIdNum);
   const { data: members, isLoading } = useOrgMembers(orgIdNum);
-
-  const getRoleBadgeVariant = (role: string) => {
-    switch (role) {
-      case "OWNER":
-        return "default";
-      case "ADMIN":
-        return "secondary";
-      default:
-        return "outline";
-    }
-  };
 
   return (
     <>
@@ -44,54 +24,60 @@ export default function OrgMembersPage({ params }: { params: Promise<{ orgId: st
         ]}
       />
 
-      <main className="flex-1 overflow-auto p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold tracking-tight">Members</h1>
-          <p className="text-sm text-muted-foreground">Team members in this organization</p>
-        </div>
-
-        {isLoading ? (
-          <TableSkeleton rows={5} />
-        ) : members?.length === 0 ? (
-          <NoMembers />
-        ) : (
-          <div className="rounded-md border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Member</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Joined</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {members?.map((member) => (
-                  <TableRow key={member.userId}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="text-xs">
-                            {member.userName?.charAt(0).toUpperCase() || "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{member.userName}</p>
-                          <p className="text-sm text-muted-foreground">{member.userEmail}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getRoleBadgeVariant(member.role)}>{member.role}</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(member.createdAt).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+      <main className="view-enter flex-1 overflow-auto px-6 pb-16 pt-5">
+        <div className="mx-auto max-w-[980px]">
+          <div className="mb-5">
+            <h1 className="font-display text-[22px] font-bold leading-none tracking-tight">Members</h1>
+            <p className="text-text-muted mt-1.5 text-[12.5px]">
+              {members?.length ?? 0} people in {org?.name ?? "this organization"}
+            </p>
           </div>
-        )}
+
+          {isLoading ? (
+            <TableSkeleton rows={5} />
+          ) : members?.length === 0 ? (
+            <NoMembers />
+          ) : (
+            <div className="bg-card overflow-hidden rounded-xl border">
+              <div className="text-text-faint border-border grid grid-cols-[2.2fr_1fr_0.8fr] gap-3 border-b px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider">
+                <span>Member</span>
+                <span>Role</span>
+                <span className="text-right">Joined</span>
+              </div>
+              {members?.map((member, i) => (
+                <div
+                  key={member.userId}
+                  className={`hover:bg-hover grid grid-cols-[2.2fr_1fr_0.8fr] items-center gap-3 px-4 py-2.5 transition-colors ${
+                    i ? "border-border-soft border-t" : ""
+                  }`}
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <WorklyAvatar name={member.userName} size={30} />
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-semibold">{member.userName}</div>
+                      <div className="text-text-faint text-[11.5px]">{member.userEmail}</div>
+                    </div>
+                  </div>
+                  <span>
+                    <span
+                      className="inline-flex items-center rounded-[5px] border px-1.5 py-0.5 text-[11px] font-semibold"
+                      style={{
+                        background: member.role === "OWNER" ? "var(--accent-soft)" : "var(--surface-3)",
+                        color: member.role === "OWNER" ? "var(--accent-text)" : "var(--text-muted)",
+                        borderColor: member.role === "OWNER" ? "var(--accent-soft-bd)" : "var(--border)",
+                      }}
+                    >
+                      {member.role}
+                    </span>
+                  </span>
+                  <span className="text-text-muted text-right font-mono text-[12px]">
+                    {new Date(member.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </main>
     </>
   );

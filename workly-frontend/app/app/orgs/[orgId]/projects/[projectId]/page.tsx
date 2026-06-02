@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KanbanBoard } from "@/components/kanban-board";
+import { ProjectSummary } from "@/components/workly/project-summary";
+import { WorklyAvatar } from "@/components/workly/primitives";
 import {
   Dialog,
   DialogContent,
@@ -40,7 +42,6 @@ import { useAuth } from "@/lib/auth";
 import {
   useOrganization,
   useProject,
-  useIssues,
   useProjectMembers,
   useOrgMembers,
   useAddProjectMember,
@@ -61,7 +62,6 @@ export default function ProjectDetailPage({
   const { userId: currentUserId } = useAuth();
   const { data: org } = useOrganization(orgIdNum);
   const { data: project, isLoading } = useProject(orgIdNum, projectIdNum);
-  const { data: issues } = useIssues(orgIdNum, projectIdNum);
   const { data: members } = useProjectMembers(orgIdNum, projectIdNum);
   const { data: orgMembers } = useOrgMembers(orgIdNum);
   const addProjectMember = useAddProjectMember();
@@ -138,13 +138,6 @@ export default function ProjectDetailPage({
     );
   }
 
-  const issuesByStatus = {
-    TO_DO: issues?.filter((i) => i.status === "TO_DO").length || 0,
-    IN_PROGRESS: issues?.filter((i) => i.status === "IN_PROGRESS").length || 0,
-    IN_REVIEW: issues?.filter((i) => i.status === "IN_REVIEW").length || 0,
-    DONE: issues?.filter((i) => i.status === "DONE").length || 0,
-  };
-
   return (
     <>
       <AppTopbar
@@ -201,42 +194,8 @@ export default function ProjectDetailPage({
           </div>
 
           <div className="flex-1 overflow-auto">
-            <TabsContent value="summary" className="m-0 h-full space-y-6 p-6">
-              {/* Stats */}
-              <div className="grid gap-4 md:grid-cols-4">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">To Do</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{issuesByStatus.TO_DO}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{issuesByStatus.IN_PROGRESS}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">In Review</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{issuesByStatus.IN_REVIEW}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Done</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{issuesByStatus.DONE}</div>
-                  </CardContent>
-                </Card>
-              </div>
+            <TabsContent value="summary" className="m-0 h-full p-6">
+              <ProjectSummary orgId={orgIdNum} projectId={projectIdNum} />
             </TabsContent>
 
             <TabsContent value="board" className="m-0 h-full p-0">
@@ -267,9 +226,12 @@ export default function ProjectDetailPage({
                       key={member.userId}
                       className="flex items-center justify-between border-b border-border p-4 last:border-0"
                     >
-                      <div>
-                        <p className="font-medium">{member.userName}</p>
-                        <p className="text-sm text-muted-foreground">{member.userEmail}</p>
+                      <div className="flex items-center gap-3">
+                        <WorklyAvatar name={member.userName} size={30} />
+                        <div>
+                          <p className="font-medium">{member.userName}</p>
+                          <p className="text-sm text-muted-foreground">{member.userEmail}</p>
+                        </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-sm text-muted-foreground">{member.role}</span>

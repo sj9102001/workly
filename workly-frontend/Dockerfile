@@ -35,6 +35,11 @@ COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public
 COPY --from=build /app/next.config.ts ./
 
+# Runtime backend URL — read at request time by the /config route, so this
+# image can be deployed to any host and re-pointed without a rebuild.
+# (NEXT_PUBLIC_API_BASE_URL above remains the build-time fallback.)
+ENV API_BASE_URL=""
+
 # Expose port
 EXPOSE 3000
 

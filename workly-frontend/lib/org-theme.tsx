@@ -109,18 +109,9 @@ export function useOrgTheme() {
   return context;
 }
 
-function applyTheme(theme: OrgTheme) {
-  const root = document.documentElement;
-  const primaryColors = themeColors[theme.primaryColor];
-  const accentColors = themeColors[theme.accentColor];
-
-  // Apply primary color (for sidebar header, avatars, etc.)
-  root.style.setProperty("--org-primary", primaryColors.primary);
-  root.style.setProperty("--org-primary-light", primaryColors.light);
-  root.style.setProperty("--org-primary-dark", primaryColors.dark);
-
-  // Apply accent color (for buttons, links, active states)
-  root.style.setProperty("--org-accent", accentColors.primary);
-  root.style.setProperty("--org-accent-light", accentColors.light);
-  root.style.setProperty("--org-accent-dark", accentColors.dark);
+function applyTheme(_theme: OrgTheme) {
+  // The redesign uses a single fixed orange accent for the whole product
+  // (the per-org accent picker has been retired). The accent now lives in the
+  // global --accent / --primary CSS variables in app/globals.css, so this is a
+  // no-op. Kept so existing imports/state continue to work without changes.
 }

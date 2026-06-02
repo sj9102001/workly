@@ -4,8 +4,8 @@ import React from "react"
 
 import { useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-shell/app-sidebar";
+import { CommandPalette } from "@/components/workly/command-palette";
 import { useAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrgThemeProvider, useOrgTheme } from "@/lib/org-theme";
@@ -54,10 +54,11 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <SidebarProvider>
+    <div className="flex h-screen w-full overflow-hidden">
       <AppSidebar onOrgChange={handleOrgChange} onCreateOrg={handleCreateOrg} />
-      <SidebarInset>{children}</SidebarInset>
-    </SidebarProvider>
+      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      <CommandPalette />
+    </div>
   );
 }
 

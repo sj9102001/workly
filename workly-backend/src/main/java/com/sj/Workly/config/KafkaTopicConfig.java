@@ -27,10 +27,19 @@ public class KafkaTopicConfig {
     @Value("${app.kafka.topics.replication-factor:1}")
     private short replicationFactor;
 
+    private final KafkaSecurityProps securityProps;
+
+    public KafkaTopicConfig(KafkaSecurityProps securityProps) {
+        this.securityProps = securityProps;
+    }
+
     @Bean
     public KafkaAdmin kafkaAdmin() {
         Map<String, Object> config = new HashMap<>();
         config.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+
+        // Optional SASL/SSL for managed/cloud brokers (no-op for local PLAINTEXT)
+        securityProps.apply(config);
         return new KafkaAdmin(config);
     }
 

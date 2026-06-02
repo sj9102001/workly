@@ -81,11 +81,15 @@ services:
       - "8080:8080"
       - "8081:8081"
     environment:
-      # Kafka inside the Docker network should use the internal listener
-      # (PLAINTEXT_INTERNAL://kafka:29092 as configured on the kafka service)
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      # JDBC URL for the Postgres container in this compose file
-      DB_URL: jdbc:postgresql://postgres:5432/workly
+      # These default to the in-network containers, but any value set in .env
+      # takes precedence — point at an external Postgres/Kafka by setting them
+      # there (managed DB, cloud broker, etc.) with no compose edits needed.
+      #
+      # Kafka inside the Docker network uses the internal listener
+      # (PLAINTEXT_INTERNAL://kafka:29092 as configured on the kafka service).
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
+      # JDBC URL for the Postgres container in this compose file.
+      DB_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/workly}
     env_file:
       - .env
     depends_on:
@@ -106,6 +110,11 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    environment:
+      # Runtime backend URL (read by the /config route at request time).
+      # Defaults to the build-time value; override in .env to re-point without
+      # rebuilding the image.
+      API_BASE_URL: ${API_BASE_URL:-${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}}
     env_file:
       - .env
     depends_on:

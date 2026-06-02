@@ -10,16 +10,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { useUser, usePendingInvites } from "@/hooks/use-queries";
+import { useMyInvites } from "@/hooks/use-queries";
 import { useAuth } from "@/lib/auth";
 import { AcceptInviteModal } from "@/components/app-shell/accept-invite-modal";
 import { format } from "date-fns";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user: authUser } = useAuth();
-  const { data: user, isLoading: userLoading } = useUser();
-  const { data: pendingInvites, isLoading: invitesLoading } = usePendingInvites();
+  const { user } = useAuth();
+  const { data: pendingInvites, isLoading: invitesLoading } = useMyInvites();
   const [acceptInviteModalOpen, setAcceptInviteModalOpen] = useState(false);
   const [selectedInvite, setSelectedInvite] = useState<{
     token: string;
@@ -28,7 +27,7 @@ export default function ProfilePage() {
     expiresAt?: string;
   } | null>(null);
 
-  const isLoading = userLoading || invitesLoading;
+  const isLoading = invitesLoading;
 
   const handleInviteClick = (invite: {
     token: string;
@@ -107,7 +106,7 @@ export default function ProfilePage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="font-medium">
-                              {invite.organizationName || `Organization ${invite.orgId}`}
+                              {invite.orgName || `Organization ${invite.orgId}`}
                             </p>
                             <Badge variant="outline">{invite.invitedRole}</Badge>
                           </div>
@@ -122,7 +121,7 @@ export default function ProfilePage() {
                           size="sm"
                           onClick={() => handleInviteClick({
                             token: invite.token,
-                            organizationName: invite.organizationName,
+                            organizationName: invite.orgName,
                             invitedRole: invite.invitedRole,
                             expiresAt: format(new Date(invite.expiresAt), "MMM d, yyyy h:mm a"),
                           })}

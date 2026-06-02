@@ -23,6 +23,12 @@ public class KafkaConsumerConfig {
     @Value("${app.kafka.consumer.group-id:workly-backend-consumer}")
     private String groupId;
 
+    private final KafkaSecurityProps securityProps;
+
+    public KafkaConsumerConfig(KafkaSecurityProps securityProps) {
+        this.securityProps = securityProps;
+    }
+
     @Bean
     public ConsumerFactory<String, String> consumerFactory() {
         Map<String, Object> props = new HashMap<>();
@@ -30,6 +36,9 @@ public class KafkaConsumerConfig {
         // Required
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+
+        // Optional SASL/SSL for managed/cloud brokers (no-op for local PLAINTEXT)
+        securityProps.apply(props);
 
         // Deserialize key/value as String
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringDeserializer.class);

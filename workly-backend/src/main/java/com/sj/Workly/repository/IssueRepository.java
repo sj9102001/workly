@@ -14,6 +14,7 @@ public interface IssueRepository extends JpaRepository<Issue, Long> {
     List<Issue> findByProjectIdOrderByCreatedAtDesc(Long projectId);
     List<Issue> findByColumnIdOrderByOrderIndexAsc(Long columnId);
     List<Issue> findByProjectIdAndStatusOrderByCreatedAtDesc(Long projectId, IssueStatus status);
+    List<Issue> findBySprintId(Long sprintId);
     Optional<Issue> findByIdAndProjectId(Long issueId, Long projectId);
     @Query("""
         select max(i.orderIndex)
